@@ -1,12 +1,12 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import Alerte from '../components/Alerte.vue';
 import BadgeStatut from '../components/BadgeStatut.vue';
 import CarteActivite from '../components/CarteActivite.vue';
 import CompteurAnime from '../components/CompteurAnime.vue';
 import Icone from '../components/Icone.vue';
 import RetourPointage from '../components/RetourPointage.vue';
-import { activitesExemple } from '../donnees-exemple.js';
+import { listerActivites } from '../services/donnees.js';
 
 /**
  * Vitrine des composants du module 2 : chaque brique de l'interface, dans tous ses états, pour
@@ -15,6 +15,11 @@ import { activitesExemple } from '../donnees-exemple.js';
 const chargement = ref(true);
 const retour = ref({ accepte: true, cle: 0 });
 const telephone = ref('');
+const activitesExemple = ref([]);
+
+onMounted(async () => {
+    activitesExemple.value = await listerActivites();
+});
 const erreurTelephone = ref(false);
 
 function rejouerRetour(accepte) {

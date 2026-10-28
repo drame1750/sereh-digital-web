@@ -35,6 +35,13 @@ watch(repliee, (valeur) => {
 watch(() => route.fullPath, () => {
     panneauOuvert.value = false;
 });
+
+/** Les rubriques déjà construites ouvrent leur écran ; les autres, la page d'attente. */
+const ECRANS_CONSTRUITS = { 'tableau-de-bord': 'tableau-de-bord', pointage: 'pointage' };
+
+function lienRubrique(rubrique) {
+    return ECRANS_CONSTRUITS[rubrique.cle] ? { name: ECRANS_CONSTRUITS[rubrique.cle] } : { name: 'rubrique', params: { cle: rubrique.cle } };
+}
 </script>
 
 <template>
@@ -67,7 +74,7 @@ watch(() => route.fullPath, () => {
                     <RouterLink
                         v-for="rubrique in groupe.rubriques"
                         :key="rubrique.cle"
-                        :to="rubrique.cle === 'tableau-de-bord' ? { name: 'tableau-de-bord' } : { name: 'rubrique', params: { cle: rubrique.cle } }"
+                        :to="lienRubrique(rubrique)"
                         class="lien-barre"
                         :class="repliee ? 'lg:justify-center lg:px-0' : ''"
                         :title="repliee ? rubrique.libelle : undefined"

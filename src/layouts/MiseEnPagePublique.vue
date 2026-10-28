@@ -88,7 +88,10 @@ watch(() => route.fullPath, () => {
                 <div class="flex flex-col gap-2 text-sm">
                     <p class="font-semibold text-white">Contact</p>
                     <p class="text-vert-100/80">Siège régional : Katiola. Les coordonnées officielles seront modifiables depuis l'administration.</p>
-                    <RouterLink :to="{ name: 'connexion', query: { espace: 'administrateur' } }" class="mt-2 font-semibold text-white underline underline-offset-4 hover:text-or-200">Espace administrateur</RouterLink>
+                    <div class="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+                        <RouterLink :to="{ name: 'confidentialite' }" class="font-semibold text-white underline underline-offset-4 hover:text-or-200">Confidentialité</RouterLink>
+                        <RouterLink :to="{ name: 'connexion', query: { espace: 'administrateur' } }" class="font-semibold text-white underline underline-offset-4 hover:text-or-200">Espace administrateur</RouterLink>
+                    </div>
                 </div>
             </div>
         </footer>

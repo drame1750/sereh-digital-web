@@ -20,6 +20,36 @@ export const router = createRouter({
             meta: { miseEnPage: 'publique', titre: 'Composants' },
         },
         {
+            path: '/activites/:id',
+            name: 'activite',
+            component: () => import('./pages/Activite.vue'),
+            meta: { miseEnPage: 'publique', titre: 'Activité' },
+        },
+        {
+            path: '/activites/:id/inscription',
+            name: 'inscription',
+            component: () => import('./pages/inscription/Formulaire.vue'),
+            meta: { miseEnPage: 'publique', titre: 'Inscription' },
+        },
+        {
+            path: '/inscription/:jeton',
+            name: 'page-personnelle',
+            component: () => import('./pages/inscription/PagePersonnelle.vue'),
+            meta: { miseEnPage: 'publique', titre: 'Mon inscription' },
+        },
+        {
+            path: '/confidentialite',
+            name: 'confidentialite',
+            component: () => import('./pages/Confidentialite.vue'),
+            meta: { miseEnPage: 'publique', titre: 'Politique de confidentialité' },
+        },
+        {
+            path: '/pointage',
+            name: 'pointage',
+            component: () => import('./pages/pointage/Pointage.vue'),
+            meta: { miseEnPage: 'pointage', titre: 'Pointage' },
+        },
+        {
             path: '/connexion',
             name: 'connexion',
             component: () => import('./pages/ConnexionAVenir.vue'),

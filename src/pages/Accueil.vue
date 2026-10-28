@@ -1,11 +1,18 @@
 <script setup>
+import { computed, onMounted, ref } from 'vue';
 import BadgeStatut from '../components/BadgeStatut.vue';
 import CarteActivite from '../components/CarteActivite.vue';
 import Icone from '../components/Icone.vue';
 import MotifGeometrique from '../components/MotifGeometrique.vue';
-import { activitesExemple, dateLongue } from '../donnees-exemple.js';
+import { dateLongue } from '../donnees-exemple.js';
+import { listerActivites, MODE_DEMONSTRATION } from '../services/donnees.js';
 
-const [activiteEnAvant, ...autresActivites] = activitesExemple;
+const activites = ref(null);
+const enAvant = computed(() => activites.value?.find((activite) => activite.statut === 'inscriptions-ouvertes') ?? activites.value?.[0] ?? null);
+
+onMounted(async () => {
+    activites.value = await listerActivites();
+});
 
 const FONCTIONS = [
     { icone: 'inscriptions', titre: 'Inscription en ligne', texte: 'Un formulaire court, sur téléphone, avec un QR code personnel pour chaque participant et accompagnateur.' },
@@ -46,28 +53,36 @@ const FONCTIONS = [
         </section>
 
         <div class="relative z-10 mx-auto -mt-28 max-w-6xl px-4 sm:-mt-32 sm:px-6">
-            <article class="carte relative overflow-hidden p-6 sm:p-8" v-apparition>
+            <article v-if="enAvant" class="carte relative overflow-hidden p-6 sm:p-8" v-apparition>
                 <div class="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-or-300 to-or-600" aria-hidden="true" />
                 <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div class="flex flex-col gap-3">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="surtitre">Prochaine activité</span>
-                            <BadgeStatut statut="exemple" />
+                            <BadgeStatut v-if="MODE_DEMONSTRATION" statut="exemple" />
                         </div>
-                        <h2 class="text-2xl font-bold sm:text-3xl">{{ activiteEnAvant.titre }} <span class="text-or-600">· {{ activiteEnAvant.edition }}</span></h2>
+                        <h2 class="text-2xl font-bold sm:text-3xl">{{ enAvant.titre }} <span class="text-or-600">· {{ enAvant.edition }}</span></h2>
                         <ul class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-encre-douce">
-                            <li class="flex items-center gap-2"><Icone nom="calendrier" class="size-4 text-or-600" /> <span class="first-letter:uppercase">{{ dateLongue(activiteEnAvant.date) }}</span></li>
-                            <li class="flex items-center gap-2"><Icone nom="horloge" class="size-4 text-or-600" /> {{ activiteEnAvant.heure }}</li>
-                            <li class="flex items-center gap-2"><Icone nom="lieu" class="size-4 text-or-600" /> {{ activiteEnAvant.lieu }}</li>
+                            <li class="flex items-center gap-2"><Icone nom="calendrier" class="size-4 text-or-600" /> <span class="first-letter:uppercase">{{ dateLongue(enAvant.date) }}</span></li>
+                            <li class="flex items-center gap-2"><Icone nom="horloge" class="size-4 text-or-600" /> {{ enAvant.heure }}</li>
+                            <li class="flex items-center gap-2"><Icone nom="lieu" class="size-4 text-or-600" /> {{ enAvant.lieu }}</li>
                         </ul>
                     </div>
                     <div class="flex flex-col items-start gap-2 lg:items-end">
-                        <BadgeStatut :statut="activiteEnAvant.statut" />
-                        <p class="text-sm text-encre-douce">Plus que {{ activiteEnAvant.placesRestantes }} places</p>
-                        <button type="button" class="bouton-primaire" disabled title="Les inscriptions arrivent au module 6">S'inscrire</button>
+                        <BadgeStatut :statut="enAvant.statut" />
+                        <p v-if="enAvant.placesRestantes !== null" class="text-sm text-encre-douce">Plus que {{ enAvant.placesRestantes }} places</p>
+                        <div class="flex flex-wrap gap-2">
+                            <RouterLink :to="{ name: 'activite', params: { id: enAvant.id } }" class="bouton-secondaire">Détails</RouterLink>
+                            <RouterLink v-if="enAvant.statut === 'inscriptions-ouvertes' || enAvant.statut === 'complet'" :to="{ name: 'inscription', params: { id: enAvant.id } }" class="bouton-primaire">S'inscrire</RouterLink>
+                        </div>
                     </div>
                 </div>
             </article>
+            <div v-else class="carte flex flex-col gap-3 p-8" aria-hidden="true">
+                <div class="squelette h-4 w-40" />
+                <div class="squelette h-8 w-2/3" />
+                <div class="squelette h-4 w-1/2" />
+            </div>
         </div>
 
         <section id="activites" class="mx-auto max-w-6xl scroll-mt-24 px-4 py-20 sm:px-6" aria-labelledby="titre-activites">
@@ -76,12 +91,28 @@ const FONCTIONS = [
                     <p class="surtitre mb-2">Agenda</p>
                     <h2 id="titre-activites" class="titre-section">Prochaines activités</h2>
                 </div>
-                <p class="max-w-md text-sm text-encre-douce">Maquette : ces cartes montrent le rendu avec des données d'exemple. Aucune n'est une donnée enregistrée.</p>
+                <p v-if="MODE_DEMONSTRATION" class="max-w-md text-sm text-encre-douce">Démonstration : ces activités et leurs chiffres sont des exemples. Aucune n'est une donnée enregistrée.</p>
             </div>
             <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <div v-for="(activite, index) in activitesExemple" :key="activite.id" v-apparition="index * 110">
-                    <CarteActivite :activite="activite" />
-                </div>
+                <template v-if="activites">
+                    <RouterLink
+                        v-for="(activite, index) in activites"
+                        :key="activite.id"
+                        :to="{ name: 'activite', params: { id: activite.id } }"
+                        class="block rounded-2xl"
+                        v-apparition="index * 110"
+                    >
+                        <CarteActivite :activite="activite" />
+                    </RouterLink>
+                </template>
+                <template v-else>
+                    <div v-for="index in 3" :key="index" class="carte flex flex-col gap-3 p-5" aria-hidden="true">
+                        <div class="squelette h-32" />
+                        <div class="squelette h-5 w-1/3" />
+                        <div class="squelette h-6 w-3/4" />
+                    </div>
+                    <p class="sr-only" role="status">Chargement des activités…</p>
+                </template>
             </div>
         </section>
 

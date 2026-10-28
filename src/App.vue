@@ -2,10 +2,12 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import MiseEnPageAdmin from './layouts/MiseEnPageAdmin.vue';
+import MiseEnPagePointage from './layouts/MiseEnPagePointage.vue';
 import MiseEnPagePublique from './layouts/MiseEnPagePublique.vue';
 
 const route = useRoute();
-const miseEnPage = computed(() => (route.meta.miseEnPage === 'admin' ? MiseEnPageAdmin : MiseEnPagePublique));
+const MISES_EN_PAGE = { admin: MiseEnPageAdmin, pointage: MiseEnPagePointage, publique: MiseEnPagePublique };
+const miseEnPage = computed(() => MISES_EN_PAGE[route.meta.miseEnPage] ?? MiseEnPagePublique);
 </script>
 
 <template>
