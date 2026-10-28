@@ -1,0 +1,355 @@
+@import 'tailwindcss';
+
+/*
+ * Charte SEREH Digital : vert profond, or et blanc ; mode clair « parchemin et or », mode sombre,
+ * contraste renforcé et grande taille de texte, réglés par le menu Affichage sur l'élément <html>.
+ * Les couleurs qui changent selon le thème passent par des variables --c-… ; les classes Tailwind
+ * (bg-canvas, text-encre…) les lisent.
+ */
+
+@theme {
+    --font-sans: 'Montserrat Variable', 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    --color-vert-50: #eef7f0;
+    --color-vert-100: #dcefe0;
+    --color-vert-200: #b5ddbf;
+    --color-vert-300: #82c495;
+    --color-vert-400: #4ea46a;
+    --color-vert-500: #23864a;
+    --color-vert-600: #137a39;
+    --color-vert-700: #0b5d2a;
+    --color-vert-800: #0a4f22;
+    --color-vert-900: #053f16;
+    --color-vert-950: #032a10;
+
+    --color-or-100: #f8efd6;
+    --color-or-200: #f0d98f;
+    --color-or-300: #e8cf8e;
+    --color-or-400: #dbb866;
+    --color-or-500: #c9a24a;
+    --color-or-600: #a8842f;
+    --color-or-700: #7d6120;
+
+    --ease-douce: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+    --color-canvas: var(--c-canvas);
+    --color-surface: var(--c-surface);
+    --color-surface-2: var(--c-surface-2);
+    --color-ligne: var(--c-ligne);
+    --color-encre: var(--c-encre);
+    --color-encre-douce: var(--c-encre-douce);
+    --color-accent: var(--c-accent);
+    --color-accent-texte: var(--c-accent-texte);
+    --color-lien: var(--c-lien);
+    --color-ok: var(--c-ok);
+    --color-ok-fond: var(--c-ok-fond);
+    --color-attention: var(--c-attention);
+    --color-attention-fond: var(--c-attention-fond);
+    --color-danger: var(--c-danger);
+    --color-danger-fond: var(--c-danger-fond);
+    --color-info: var(--c-info);
+    --color-info-fond: var(--c-info-fond);
+}
+
+/* Mode clair « parchemin et or » : fond sable, cartes ivoire, encre brune. */
+:root {
+    --c-canvas: #f3ead7;
+    --c-surface: #fbf6ea;
+    --c-surface-2: #f6eedc;
+    --c-ligne: #e3d6b8;
+    --c-encre: #2b2118;
+    --c-encre-douce: #5c4f42;
+    --c-accent: #0b5d2a;
+    --c-accent-texte: #ffffff;
+    --c-lien: #0b5d2a;
+    --c-ok: #0b6b2f;
+    --c-ok-fond: #e3f1e4;
+    --c-attention: #7a5a12;
+    --c-attention-fond: #f7edd2;
+    --c-danger: #a3261d;
+    --c-danger-fond: #f8e5e2;
+    --c-info: #1f4f7a;
+    --c-info-fond: #e4eef7;
+    --ombre-carte: 0 1px 2px rgb(43 33 24 / 0.06), 0 8px 24px -12px rgb(43 33 24 / 0.18);
+    --ombre-relief: 0 2px 4px rgb(43 33 24 / 0.08), 0 18px 40px -16px rgb(5 63 22 / 0.35);
+    color-scheme: light;
+}
+
+:root[data-theme='sombre'] {
+    --c-canvas: #0c140f;
+    --c-surface: #141f18;
+    --c-surface-2: #1b281f;
+    --c-ligne: #2a3a2f;
+    --c-encre: #f1ece1;
+    --c-encre-douce: #c3baa9;
+    --c-accent: #4ea46a;
+    --c-accent-texte: #04210c;
+    --c-lien: #82c495;
+    --c-ok: #7fd394;
+    --c-ok-fond: #15301d;
+    --c-attention: #e8cf8e;
+    --c-attention-fond: #33290f;
+    --c-danger: #f3a59c;
+    --c-danger-fond: #3a1714;
+    --c-info: #9cc7ee;
+    --c-info-fond: #13263a;
+    --ombre-carte: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+    --ombre-relief: 0 2px 4px rgb(0 0 0 / 0.5), 0 18px 40px -16px rgb(0 0 0 / 0.7);
+    color-scheme: dark;
+}
+
+/* Contraste renforcé : texte noir sur blanc (ou blanc sur noir), bordures franches. */
+:root[data-contraste='renforce'] {
+    --c-canvas: #ffffff;
+    --c-surface: #ffffff;
+    --c-surface-2: #f2f2f2;
+    --c-ligne: #3d3d3d;
+    --c-encre: #000000;
+    --c-encre-douce: #1f1f1f;
+    --c-accent: #003d14;
+    --c-lien: #003d14;
+}
+
+:root[data-theme='sombre'][data-contraste='renforce'] {
+    --c-canvas: #000000;
+    --c-surface: #000000;
+    --c-surface-2: #121212;
+    --c-ligne: #d9d9d9;
+    --c-encre: #ffffff;
+    --c-encre-douce: #f0f0f0;
+    --c-accent: #9be3ad;
+    --c-accent-texte: #000000;
+    --c-lien: #9be3ad;
+}
+
+/* Grande taille de texte : toutes les tailles en rem grandissent ensemble. */
+:root[data-texte='grand'] {
+    font-size: 118.75%;
+}
+
+@layer base {
+    body {
+        @apply bg-canvas text-encre font-sans antialiased;
+        line-height: 1.6;
+    }
+
+    :focus-visible {
+        outline: 3px solid var(--color-or-500);
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+
+    h1,
+    h2,
+    h3 {
+        letter-spacing: -0.015em;
+        line-height: 1.2;
+    }
+}
+
+/* Briques réutilisables : déclarées comme utilitaires pour pouvoir être combinées avec @apply. */
+@utility carte {
+    border-radius: var(--radius-2xl);
+    border: 1px solid var(--c-ligne);
+    background-color: var(--c-surface);
+    box-shadow: var(--ombre-carte);
+}
+
+@utility bouton {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-xl);
+    padding: 0.625rem 1.25rem;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    font-weight: 600;
+    transition: transform 0.12s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:active:not(:disabled) {
+        transform: scale(0.97);
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+    }
+}
+
+@layer components {
+    .carte-vivante {
+        @apply carte;
+        transition: transform 0.25s var(--ease-douce), box-shadow 0.25s var(--ease-douce);
+    }
+
+    .carte-vivante:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--ombre-relief);
+    }
+
+    .bouton-primaire {
+        @apply bouton text-white;
+        background: linear-gradient(135deg, var(--color-vert-600), var(--color-vert-800));
+        box-shadow: 0 1px 0 rgb(255 255 255 / 0.18) inset, 0 6px 16px -8px rgb(5 63 22 / 0.6);
+    }
+
+    .bouton-primaire:hover:not(:disabled) {
+        background: linear-gradient(135deg, var(--color-vert-500), var(--color-vert-700));
+    }
+
+    .bouton-or {
+        @apply bouton text-vert-950;
+        background: linear-gradient(135deg, var(--color-or-200), var(--color-or-500));
+        box-shadow: 0 1px 0 rgb(255 255 255 / 0.5) inset, 0 6px 16px -8px rgb(125 97 32 / 0.7);
+    }
+
+    .bouton-secondaire {
+        @apply bouton border border-ligne bg-surface text-encre;
+    }
+
+    .bouton-secondaire:hover:not(:disabled) {
+        @apply bg-surface-2;
+    }
+
+    .bouton-discret {
+        @apply bouton text-lien;
+    }
+
+    .bouton-discret:hover:not(:disabled) {
+        @apply bg-surface-2;
+    }
+
+    /* Rouge fixe, dans les deux thèmes : le texte blanc reste lisible. */
+    .bouton-danger {
+        @apply bouton text-white;
+        background: #b3261e;
+    }
+
+    .bouton-danger:hover:not(:disabled) {
+        background: #8f1d17;
+    }
+
+    .champ-saisie {
+        @apply min-h-12 w-full rounded-xl border border-ligne bg-surface-2 px-4 py-2.5 text-base text-encre;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .champ-saisie:focus {
+        @apply border-or-500 outline-none;
+        box-shadow: 0 0 0 4px rgb(201 162 74 / 0.25);
+    }
+
+    .champ-saisie[aria-invalid='true'] {
+        @apply border-danger;
+    }
+
+    .titre-section {
+        @apply text-2xl font-bold tracking-tight sm:text-3xl;
+    }
+
+    .titre-section::after {
+        content: '';
+        @apply mt-3 block h-1 w-14 rounded-full;
+        background: linear-gradient(90deg, var(--color-or-500), var(--color-or-200));
+    }
+
+    .surtitre {
+        @apply text-xs font-bold uppercase tracking-[0.18em] text-or-600;
+    }
+
+    :root[data-theme='sombre'] .surtitre {
+        @apply text-or-300;
+    }
+}
+
+/*
+ * Animations. Elles ne jouent que lorsque l'interrupteur « Animations » est actif et que l'appareil
+ * ne demande pas de réduire les animations : le menu Affichage pose alors data-animations="oui".
+ */
+:root[data-animations='non'] *,
+:root[data-animations='non'] *::before,
+:root[data-animations='non'] *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+}
+
+:root[data-animations='oui'] .apparition {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.6s var(--ease-douce), transform 0.6s var(--ease-douce);
+    transition-delay: var(--delai, 0ms);
+}
+
+:root[data-animations='oui'] .apparition.apparition--visible {
+    opacity: 1;
+    transform: none;
+}
+
+.page-enter-active,
+.page-leave-active {
+    transition: opacity 0.22s ease, transform 0.22s var(--ease-douce);
+}
+
+.page-enter-from {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.page-leave-to {
+    opacity: 0;
+}
+
+.squelette {
+    @apply rounded-lg bg-surface-2;
+    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: reflet 1.4s ease-in-out infinite;
+}
+
+:root[data-theme='sombre'] .squelette {
+    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.07), transparent);
+}
+
+@keyframes reflet {
+    from {
+        background-position: 150% 0;
+    }
+
+    to {
+        background-position: -50% 0;
+    }
+}
+
+@keyframes trace {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes pulsation {
+    0% {
+        transform: scale(0.85);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(1.04);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes rotation-lente {
+    to {
+        transform: rotate(360deg);
+    }
+}

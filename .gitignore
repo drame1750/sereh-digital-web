@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dev-dist/
+
+# Réglages de prévisualisation propres à ce poste
+/.claude/launch.json
+
+# Valeurs propres à ce poste : jamais dans le dépôt
+.env
+.env.local
+.env.*.local

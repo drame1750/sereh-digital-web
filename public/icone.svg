@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SEREH Digital">
+    <!-- Icône d'application provisoire : une étoile géométrique, en attendant le logo officiel. Ce n'est pas un logo de l'AEEMCI. -->
+    <defs>
+        <linearGradient id="fond" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0b5d2a"/>
+            <stop offset="1" stop-color="#032a10"/>
+        </linearGradient>
+        <linearGradient id="or" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f0d98f"/>
+            <stop offset="1" stop-color="#c9a24a"/>
+        </linearGradient>
+    </defs>
+    <rect width="512" height="512" rx="112" fill="url(#fond)"/>
+    <g fill="none" stroke="url(#or)" stroke-width="18" stroke-linejoin="round">
+        <rect x="146" y="146" width="220" height="220"/>
+        <rect x="146" y="146" width="220" height="220" transform="rotate(45 256 256)"/>
+        <circle cx="256" cy="256" r="58"/>
+    </g>
+</svg>
