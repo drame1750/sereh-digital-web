@@ -22,6 +22,7 @@ const STATUTS = {
     'reponse-tardive': { libelle: 'Réponse tardive', ton: 'attention' },
     admise: { libelle: 'Admise', ton: 'ok' },
     'en-attente': { libelle: 'En attente', ton: 'attention' },
+    annulee: { libelle: 'Annulée', ton: 'danger' },
     exemple: { libelle: 'Exemple', ton: 'info' },
 };
 

@@ -1,18 +1,22 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import logo from '../assets/logo-aeemci-provisoire.jpg';
 import Icone from '../components/Icone.vue';
 import MenuAffichage from '../components/MenuAffichage.vue';
+import { useInactivite } from '../composables/useInactivite.js';
 import { RUBRIQUES } from '../rubriques.js';
+import { LIBELLES_ROLES, seDeconnecter, session } from '../services/session.js';
 
 /**
  * Mise en page de l'espace administrateur : barre latérale gauche repliable, avec icônes et libellés
  * (cahier des charges, section 8). Sur téléphone, elle devient un panneau qui s'ouvre par le menu.
- * Les rubriques affichées dépendront des droits de la personne connectée (module 4).
+ * Les rubriques affichées dépendront des droits de la personne connectée ; la session se ferme après
+ * 15 minutes d'inactivité.
  */
 const CLE_REPLI = 'sereh.barre-repliee';
 const route = useRoute();
+const router = useRouter();
 const repliee = ref(lireRepli());
 const panneauOuvert = ref(false);
 
@@ -37,7 +41,20 @@ watch(() => route.fullPath, () => {
 });
 
 /** Les rubriques déjà construites ouvrent leur écran ; les autres, la page d'attente. */
-const ECRANS_CONSTRUITS = { 'tableau-de-bord': 'tableau-de-bord', pointage: 'pointage' };
+const ECRANS_CONSTRUITS = {
+    'tableau-de-bord': 'tableau-de-bord',
+    activites: 'admin-activites',
+    inscriptions: 'admin-inscriptions',
+    participants: 'admin-inscriptions',
+    pointage: 'pointage',
+};
+
+useInactivite();
+
+function quitter() {
+    seDeconnecter('Vous êtes déconnecté.');
+    router.push({ name: 'connexion', query: { espace: 'administrateur' } });
+}
 
 function lienRubrique(rubrique) {
     return ECRANS_CONSTRUITS[rubrique.cle] ? { name: ECRANS_CONSTRUITS[rubrique.cle] } : { name: 'rubrique', params: { cle: rubrique.cle } };
@@ -116,9 +133,13 @@ function lienRubrique(rubrique) {
                             <span class="absolute top-2 right-2 inline-flex size-4 items-center justify-center rounded-full bg-danger text-[0.625rem] font-bold text-white" aria-hidden="true">3</span>
                         </button>
                         <MenuAffichage />
-                        <RouterLink to="/" class="bouton-discret hidden sm:inline-flex">
-                            <Icone nom="deconnexion" class="size-4" /> Site public
-                        </RouterLink>
+                        <div class="hidden text-right leading-tight md:block">
+                            <p class="text-sm font-semibold">{{ session.utilisateur?.nom }}</p>
+                            <p class="text-xs text-encre-douce">{{ LIBELLES_ROLES[session.utilisateur?.role] }}</p>
+                        </div>
+                        <button type="button" class="bouton-discret" @click="quitter">
+                            <Icone nom="deconnexion" class="size-4" /> <span class="hidden sm:inline">Se déconnecter</span>
+                        </button>
                     </div>
                 </div>
             </header>

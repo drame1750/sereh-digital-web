@@ -21,6 +21,7 @@ const nouvelle = route.query.nouvelle === '1';
 
 const personnes = computed(() => (groupe.value ? [groupe.value.principal, ...groupe.value.accompagnateurs] : []));
 const admise = computed(() => groupe.value?.principal.statut === 'admise');
+const annulee = computed(() => groupe.value?.principal.statut === 'annulee');
 const lienPersonnel = computed(() => `${location.origin}${location.pathname}#/inscription/${route.params.jeton}`);
 const partagePossible = typeof navigator.share === 'function';
 
@@ -86,7 +87,11 @@ async function telechargerBillet(personne) {
 
             <Alerte v-if="MODE_DEMONSTRATION" ton="info" titre="Démonstration" class="print:hidden">Cette inscription est fictive : elle reste dans cet onglet, et ses billets ne sont valables nulle part.</Alerte>
 
-            <section class="etat carte relative overflow-hidden p-6 print:hidden" :class="admise ? 'etat--admise' : 'etat--attente'" v-apparition>
+            <Alerte v-if="annulee" ton="danger" titre="Inscription annulée" class="print:hidden">
+                Cette inscription a été annulée par l'organisation ({{ groupe.principal.motifAnnulation }}). Ses QR codes ne donnent plus accès à l'entrée.
+            </Alerte>
+
+            <section v-else class="etat carte relative overflow-hidden p-6 print:hidden" :class="admise ? 'etat--admise' : 'etat--attente'" v-apparition>
                 <div class="flex items-start gap-4">
                     <span class="inline-flex size-12 flex-none items-center justify-center rounded-2xl text-white" :class="admise ? 'bg-vert-700' : 'bg-or-600'">
                         <Icone :nom="admise ? 'coche' : 'horloge'" class="size-6" />
@@ -128,7 +133,7 @@ async function telechargerBillet(personne) {
                         <div class="flex flex-col items-center gap-3 p-5">
                             <img v-if="images[personne.id]" :src="images[personne.id]" :alt="`QR code de ${personne.nom}`" width="240" height="240" class="rounded-xl bg-white p-2">
                             <div v-else class="squelette size-60" aria-hidden="true" />
-                            <BadgeStatut :statut="personne.statut === 'admise' ? 'admise' : 'en-attente'" />
+                            <BadgeStatut :statut="{ admise: 'admise', en_attente: 'en-attente', annulee: 'annulee' }[personne.statut]" />
                             <button type="button" class="bouton-secondaire w-full print:hidden" @click="telechargerBillet(personne)">
                                 Télécharger le billet
                             </button>

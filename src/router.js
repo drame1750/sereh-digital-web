@@ -1,8 +1,12 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import { aAcces, session } from './services/session.js';
 
 /**
  * Adresses de la forme …/#/composants : GitHub Pages ne sert que des fichiers fixes, le signe « # »
  * permet à l'application de gérer elle-même ses pages (cahier des charges, section 9).
+ *
+ * « acces » réserve une page à un espace privé. Dans l'interface, cela décide seulement de ce qui
+ * s'affiche : c'est le serveur qui refusera toute lecture ou action non autorisée.
  */
 export const router = createRouter({
     history: createWebHashHistory(),
@@ -44,28 +48,58 @@ export const router = createRouter({
             meta: { miseEnPage: 'publique', titre: 'Politique de confidentialité' },
         },
         {
-            path: '/pointage',
-            name: 'pointage',
-            component: () => import('./pages/pointage/Pointage.vue'),
-            meta: { miseEnPage: 'pointage', titre: 'Pointage' },
-        },
-        {
             path: '/connexion',
             name: 'connexion',
-            component: () => import('./pages/ConnexionAVenir.vue'),
+            component: () => import('./pages/Connexion.vue'),
             meta: { miseEnPage: 'publique', titre: 'Connexion' },
         },
         {
-            path: '/maquette/tableau-de-bord',
-            name: 'tableau-de-bord',
-            component: () => import('./pages/admin/TableauDeBord.vue'),
-            meta: { miseEnPage: 'admin', titre: 'Tableau de bord' },
+            path: '/espace-secretaire',
+            name: 'espace-secretaire',
+            component: () => import('./pages/EspaceSecretaireAVenir.vue'),
+            meta: { miseEnPage: 'publique', titre: 'Espace secrétaire régional', acces: 'sr' },
         },
         {
-            path: '/maquette/:cle',
+            path: '/pointage',
+            name: 'pointage',
+            component: () => import('./pages/pointage/Pointage.vue'),
+            meta: { miseEnPage: 'pointage', titre: 'Pointage', acces: 'pointage' },
+        },
+        {
+            path: '/admin',
+            name: 'tableau-de-bord',
+            component: () => import('./pages/admin/TableauDeBord.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Tableau de bord', acces: 'admin' },
+        },
+        {
+            path: '/admin/activites',
+            name: 'admin-activites',
+            component: () => import('./pages/admin/Activites.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Activités', acces: 'admin' },
+        },
+        {
+            path: '/admin/activites/nouvelle',
+            name: 'admin-activite-nouvelle',
+            component: () => import('./pages/admin/FormulaireActivite.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Nouvelle activité', acces: 'admin' },
+        },
+        {
+            path: '/admin/activites/:id/modifier',
+            name: 'admin-activite-modifier',
+            component: () => import('./pages/admin/FormulaireActivite.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Modifier une activité', acces: 'admin' },
+        },
+        {
+            path: '/admin/inscriptions',
+            name: 'admin-inscriptions',
+            component: () => import('./pages/admin/Inscriptions.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Inscriptions', acces: 'admin' },
+        },
+        {
+            path: '/admin/:cle',
             name: 'rubrique',
             component: () => import('./pages/admin/RubriqueAVenir.vue'),
-            meta: { miseEnPage: 'admin', titre: 'Rubrique' },
+            meta: { miseEnPage: 'admin', titre: 'Rubrique', acces: 'admin' },
         },
         {
             path: '/:chemin(.*)*',
@@ -84,6 +118,20 @@ export const router = createRouter({
             ? position
             : new Promise((resoudre) => setTimeout(() => resoudre(position), 240));
     },
+});
+
+const ESPACE_DE_CONNEXION = { admin: 'administrateur', pointage: 'pointage', sr: 'secretaire' };
+
+router.beforeEach((vers) => {
+    if (vers.meta.acces && !aAcces(vers.meta.acces)) {
+        if (session.utilisateur) {
+            session.message = 'Votre compte n’a pas accès à cette page.';
+        }
+
+        return { name: 'connexion', query: { espace: ESPACE_DE_CONNEXION[vers.meta.acces], retour: vers.fullPath } };
+    }
+
+    return true;
 });
 
 router.afterEach((vers) => {

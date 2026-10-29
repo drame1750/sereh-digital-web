@@ -61,6 +61,8 @@ function decrire(reponse) {
             return { accepte: false, titre: 'Déjà pointé', detail: `${personne.nom} · premier passage à ${heure(reponse.premierPassage)}. Second passage bloqué.` };
         case 'non_admise':
             return { accepte: false, titre: 'Inscription en attente', detail: `${personne.nom} · pas encore validée. Orientez la personne vers un responsable.` };
+        case 'annulee':
+            return { accepte: false, titre: 'Inscription annulée', detail: `${personne.nom} · cette inscription a été annulée.` };
         case 'autre_activite':
             return { accepte: false, titre: 'Autre activité', detail: 'Ce QR code appartient à une autre activité.' };
         default:

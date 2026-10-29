@@ -51,6 +51,11 @@ const ICONES = {
     info: [cercle(12, 12, 9), 'M12 11v5', 'M12 8h.01'],
     'fleche-droite': ['M5 12h14', 'M13 6l6 6-6 6'],
     connexion: ['M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3', 'M14 8l4 4-4 4', 'M18 12H8'],
+    oeil: ['M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z', cercle(12, 12, 3)],
+    'oeil-barre': ['M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z', cercle(12, 12, 3), 'M4 4l16 16'],
+    crayon: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
+    lien: ['M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1', 'M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'],
+    filtre: ['M4 5h16l-6 7.5V19l-4-2v-4.5z'],
 };
 
 const traits = computed(() => (ICONES[props.nom] ?? ICONES.info).map((trait) => (typeof trait === 'string' ? { d: trait } : trait)));
