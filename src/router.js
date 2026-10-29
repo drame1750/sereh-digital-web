@@ -56,8 +56,14 @@ export const router = createRouter({
         {
             path: '/espace-secretaire',
             name: 'espace-secretaire',
-            component: () => import('./pages/EspaceSecretaireAVenir.vue'),
-            meta: { miseEnPage: 'publique', titre: 'Espace secrétaire régional', acces: 'sr' },
+            component: () => import('./pages/secretaire/Espace.vue'),
+            meta: { miseEnPage: 'secretaire', titre: 'Espace secrétaire régional', acces: 'sr' },
+        },
+        {
+            path: '/espace-secretaire/courriers/:id',
+            name: 'courrier-secretaire',
+            component: () => import('./pages/secretaire/Courrier.vue'),
+            meta: { miseEnPage: 'secretaire', titre: 'Courrier', acces: 'sr' },
         },
         {
             path: '/pointage',
@@ -94,6 +100,42 @@ export const router = createRouter({
             name: 'admin-inscriptions',
             component: () => import('./pages/admin/Inscriptions.vue'),
             meta: { miseEnPage: 'admin', titre: 'Inscriptions', acces: 'admin' },
+        },
+        {
+            path: '/admin/courriers',
+            name: 'admin-courriers',
+            component: () => import('./pages/admin/Courriers.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Courriers', acces: 'admin' },
+        },
+        {
+            path: '/admin/courriers/nouveau',
+            name: 'admin-courrier-nouveau',
+            component: () => import('./pages/admin/FormulaireCourrier.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Nouveau courrier', acces: 'admin' },
+        },
+        {
+            path: '/admin/courriers/modeles',
+            name: 'admin-modeles-courrier',
+            component: () => import('./pages/admin/ModelesCourrier.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Modèles de courrier', acces: 'admin' },
+        },
+        {
+            path: '/admin/courriers/:id',
+            name: 'admin-courrier',
+            component: () => import('./pages/admin/FicheCourrier.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Suivi du courrier', acces: 'admin' },
+        },
+        {
+            path: '/admin/courriers/:id/modifier',
+            name: 'admin-courrier-modifier',
+            component: () => import('./pages/admin/FormulaireCourrier.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Brouillon de courrier', acces: 'admin' },
+        },
+        {
+            path: '/admin/secretaires',
+            name: 'admin-secretaires',
+            component: () => import('./pages/admin/Secretaires.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Secrétaires régionaux', acces: 'admin' },
         },
         {
             path: '/admin/:cle',

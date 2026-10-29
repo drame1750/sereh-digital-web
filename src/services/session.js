@@ -4,14 +4,17 @@ import { normaliserTelephone } from '../telephone.js';
 /**
  * Connexion aux espaces privés (cahier des charges, sections 6 et 10).
  *
- * VERSION DE DÉMONSTRATION : trois comptes fictifs, et un code de double authentification fixe.
+ * VERSION DE DÉMONSTRATION : quatre comptes fictifs, et un code de double authentification fixe.
  * Quand Supabase sera branché, la connexion, la double authentification et le contrôle des droits
  * seront faits par le serveur ; ce fichier gardera la même forme pour les écrans.
+ *
+ * « membreId » relie un compte de secrétaire régional à sa fiche de membre du bureau.
  */
 export const COMPTES_DEMONSTRATION = [
     { telephone: '+2250700000001', motDePasse: 'Demonstration2026', nom: 'Administrateur de démonstration', role: 'admin', doubleAuthentification: true, motDePasseProvisoire: false },
     { telephone: '+2250700000002', motDePasse: 'Demonstration2026', nom: 'Agent de démonstration', role: 'pointage', doubleAuthentification: false, motDePasseProvisoire: false },
-    { telephone: '+2250700000003', motDePasse: 'Provisoire2026', nom: 'Secrétaire régional de démonstration', role: 'sr', doubleAuthentification: false, motDePasseProvisoire: true },
+    { telephone: '+2250700000003', motDePasse: 'Provisoire2026', nom: 'Secrétaire régional de démonstration', role: 'sr', membreId: 'membre-sr', doubleAuthentification: false, motDePasseProvisoire: true },
+    { telephone: '+2250700000004', motDePasse: 'Demonstration2026', nom: 'Vice-SR de démonstration', role: 'sr', membreId: 'membre-vice-sr', doubleAuthentification: false, motDePasseProvisoire: false },
 ];
 
 export const CODE_DEMONSTRATION = '123456';
@@ -145,7 +148,7 @@ export async function remplacerMotDePasseProvisoire(nouveau, confirmation) {
 }
 
 function ouvrirSession(compte, niveau) {
-    session.utilisateur = { nom: compte.nom, role: compte.role, telephone: compte.telephone };
+    session.utilisateur = { nom: compte.nom, role: compte.role, telephone: compte.telephone, membreId: compte.membreId ?? null };
     session.niveau = niveau;
     session.etape = null;
     compteEnCours = null;

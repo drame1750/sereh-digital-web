@@ -56,6 +56,13 @@ const ICONES = {
     crayon: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
     lien: ['M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1', 'M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'],
     filtre: ['M4 5h16l-6 7.5V19l-4-2v-4.5z'],
+    cadenas: [rectangle(5, 11, 14, 10, 2), 'M8 11V8a4 4 0 0 1 8 0v3', 'M12 15v2'],
+    telecharger: ['M12 4v11', 'M7.5 10.5 12 15l4.5-4.5', 'M5 20h14'],
+    importer: ['M12 15V4', 'M7.5 8.5 12 4l4.5 4.5', 'M5 20h14'],
+    imprimer: ['M7 9V4h10v5', rectangle(4, 9, 16, 8, 2), 'M7 14h10v6H7z'],
+    document: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5', 'M9 13h6', 'M9 17h4'],
+    bulle: ['M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-9l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'M8.5 9.5h7', 'M8.5 12.5h4'],
+    envoyer: ['M21 3 10 14', 'M21 3l-7 18-4-7-7-4z'],
 };
 
 const traits = computed(() => (ICONES[props.nom] ?? ICONES.info).map((trait) => (typeof trait === 'string' ? { d: trait } : trait)));

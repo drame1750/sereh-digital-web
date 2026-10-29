@@ -8,14 +8,15 @@ import { dateLongue, tableauDeBordExemple } from '../../donnees-exemple.js';
  * Maquette du tableau de bord de l'administrateur (cahier des charges, section 8). Tous les chiffres
  * sont des exemples : la page le dit en tête, et les vrais chiffres arriveront avec les modules 5 à 9.
  */
+/** Les raccourcis sans « vers » mènent à des écrans pas encore construits : ils restent inactifs. */
 const ACTIONS_RAPIDES = [
-    { icone: 'plus', libelle: 'Créer une activité' },
-    { icone: 'courrier', libelle: 'Affecter un courrier' },
+    { icone: 'plus', libelle: 'Créer une activité', vers: { name: 'admin-activite-nouvelle' } },
+    { icone: 'courrier', libelle: 'Affecter un courrier', vers: { name: 'admin-courrier-nouveau' } },
     { icone: 'comptes', libelle: 'Créer un compte' },
-    { icone: 'inscriptions', libelle: 'Consulter les inscriptions' },
+    { icone: 'inscriptions', libelle: 'Consulter les inscriptions', vers: { name: 'admin-inscriptions' } },
     { icone: 'recherche', libelle: 'Rechercher' },
-    { icone: 'secretaires', libelle: 'Voir les confirmations' },
-    { icone: 'pointage', libelle: 'Accéder au pointage' },
+    { icone: 'secretaires', libelle: 'Voir les confirmations', vers: { name: 'admin-courriers', query: { onglet: 'a-traiter' } } },
+    { icone: 'pointage', libelle: 'Accéder au pointage', vers: { name: 'pointage' } },
     { icone: 'rapports', libelle: 'Générer un rapport' },
 ];
 </script>
@@ -62,10 +63,18 @@ const ACTIONS_RAPIDES = [
         <section class="flex flex-col gap-4" aria-labelledby="titre-actions">
             <h2 id="titre-actions" class="text-lg font-bold">Actions rapides</h2>
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <button v-for="(action, index) in ACTIONS_RAPIDES" :key="action.libelle" type="button" class="action carte-vivante flex flex-col items-start gap-3 p-4 text-left" disabled v-apparition="index * 60">
+                <component
+                    :is="action.vers ? 'RouterLink' : 'button'"
+                    v-for="(action, index) in ACTIONS_RAPIDES"
+                    :key="action.libelle"
+                    v-bind="action.vers ? { to: action.vers } : { type: 'button', disabled: true }"
+                    class="action carte-vivante flex flex-col items-start gap-3 p-4 text-left"
+                    v-apparition="index * 60"
+                >
                     <span class="inline-flex size-10 items-center justify-center rounded-xl text-vert-900"><Icone :nom="action.icone" class="size-5" /></span>
                     <span class="text-sm font-semibold">{{ action.libelle }}</span>
-                </button>
+                    <span v-if="!action.vers" class="text-xs text-encre-douce">Bientôt</span>
+                </component>
             </div>
         </section>
 

@@ -4,9 +4,10 @@ import { useRoute } from 'vue-router';
 import MiseEnPageAdmin from './layouts/MiseEnPageAdmin.vue';
 import MiseEnPagePointage from './layouts/MiseEnPagePointage.vue';
 import MiseEnPagePublique from './layouts/MiseEnPagePublique.vue';
+import MiseEnPageSecretaire from './layouts/MiseEnPageSecretaire.vue';
 
 const route = useRoute();
-const MISES_EN_PAGE = { admin: MiseEnPageAdmin, pointage: MiseEnPagePointage, publique: MiseEnPagePublique };
+const MISES_EN_PAGE = { admin: MiseEnPageAdmin, pointage: MiseEnPagePointage, publique: MiseEnPagePublique, secretaire: MiseEnPageSecretaire };
 const miseEnPage = computed(() => MISES_EN_PAGE[route.meta.miseEnPage] ?? MiseEnPagePublique);
 </script>
 

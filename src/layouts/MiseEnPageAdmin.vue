@@ -47,6 +47,8 @@ const ECRANS_CONSTRUITS = {
     inscriptions: 'admin-inscriptions',
     participants: 'admin-inscriptions',
     pointage: 'pointage',
+    courriers: 'admin-courriers',
+    secretaires: 'admin-secretaires',
 };
 
 useInactivite();

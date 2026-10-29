@@ -303,6 +303,12 @@ function noter(action, cible) {
     etat.journal = etat.journal.slice(0, 200);
 }
 
+/** Note dans le journal une opération faite par un autre service (les courriers, par exemple). */
+export function noterOperation(action, cible) {
+    noter(action, cible);
+    enregistrerEtat();
+}
+
 /** Dernières opérations notées dans le journal de démonstration. */
 export async function dernieresOperations(nombre = 6) {
     return (etat.journal ?? []).slice(0, nombre);
