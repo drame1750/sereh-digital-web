@@ -10,21 +10,29 @@ import {
     listerActivites,
     MODE_DEMONSTRATION,
     pointerParIdentifiant,
+    preparerHorsConnexion,
     rechercherInscrits,
     statistiquesPointage,
     verifierCode,
 } from '../../services/donnees.js';
+import { session } from '../../services/session.js';
 
 /**
  * Écran de pointage d'un agent (cahier des charges, section 5) : caméra, lecteur externe ou saisie,
  * et recherche par nom en secours. Le retour se voit de loin ; l'agent ne voit jamais les numéros
- * de téléphone et ne peut pas corriger un pointage.
+ * de téléphone et ne peut pas corriger un pointage. Un agent attribué à une activité ne voit qu'elle.
+ *
+ * Hors connexion : l'agent prépare d'abord, avec du réseau, l'empreinte des codes admis (ni nom ni
+ * numéro). Sans réseau, un code lu est comparé à ces empreintes, accepté provisoirement, puis envoyé
+ * au retour du réseau ; le serveur garde le premier passage et signale les autres pour examen. Ce
+ * mode reste à tester sur place avant tout usage réel.
  */
+const CLE_HORS_CONNEXION = 'sereh.demonstration.hors-connexion';
 const DELAI_RELECTURE_MS = 3000;
 const DUREE_RETOUR_MS = 2600;
 
 const activites = ref([]);
-const activiteId = ref('nuit-du-coran');
+const activiteId = ref(session.utilisateur?.activiteId ?? 'nuit-du-coran');
 const mode = ref('camera');
 const retour = ref(null);
 const statistiques = ref({ admis: 0, presents: 0 });
@@ -36,11 +44,103 @@ const resultats = ref([]);
 const saisie = ref('');
 const champSaisie = ref(null);
 const codesDemonstration = ref([]);
+const enLigne = ref(navigator.onLine);
+const coupureSimulee = ref(false);
+const horsConnexion = ref(lireHorsConnexion());
+const bilanEnvoi = ref(null);
+const preparation = ref(false);
 let scanner = null;
 let dernierCode = '';
 let derniereLecture = 0;
 let minuterieRetour = 0;
 let minuterieRecherche = 0;
+
+const reseau = computed(() => enLigne.value && !coupureSimulee.value);
+const prepare = computed(() => (horsConnexion.value.preparation?.activiteId === activiteId.value ? horsConnexion.value.preparation : null));
+
+function lireHorsConnexion() {
+    try {
+        const enregistre = JSON.parse(window.sessionStorage.getItem(CLE_HORS_CONNEXION) ?? 'null');
+
+        // La liste préparée ne sert que le jour même : passé ce délai, elle est effacée de l'appareil.
+        if (enregistre?.preparation && Date.now() - Date.parse(enregistre.preparation.prepareLe) > 24 * 60 * 60 * 1000) {
+            enregistre.preparation = null;
+        }
+
+        return { preparation: enregistre?.preparation ?? null, enAttente: enregistre?.enAttente ?? [] };
+    } catch {
+        return { preparation: null, enAttente: [] };
+    }
+}
+
+function enregistrerHorsConnexion() {
+    try {
+        window.sessionStorage.setItem(CLE_HORS_CONNEXION, JSON.stringify(horsConnexion.value));
+    } catch {
+        // Stockage indisponible : la file d'attente vaut pour cette page seulement.
+    }
+}
+
+async function empreinte(texte) {
+    return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texte))), (octet) => octet.toString(16).padStart(2, '0')).join('');
+}
+
+async function preparer() {
+    preparation.value = true;
+    horsConnexion.value.preparation = await preparerHorsConnexion(activiteId.value);
+    enregistrerHorsConnexion();
+    preparation.value = false;
+}
+
+/** Sans réseau : le code est comparé aux empreintes préparées, puis gardé pour l'envoi. */
+async function verifierHorsConnexion(texte, moyen) {
+    if (!prepare.value) {
+        return { accepte: false, titre: 'Pas de réseau', detail: 'La liste hors connexion n’est pas préparée sur ce téléphone : utilisez la liste imprimée de secours.' };
+    }
+
+    const fiche = prepare.value.codes[await empreinte(texte)];
+
+    if (!fiche) {
+        return { accepte: false, titre: 'QR code inconnu', detail: 'Ce code ne fait pas partie des personnes admises (vérification hors connexion).' };
+    }
+
+    if (fiche.dejaPointe) {
+        return { accepte: false, titre: 'Déjà pointé', detail: 'Ce code a déjà été pointé. Second passage bloqué.' };
+    }
+
+    fiche.dejaPointe = true;
+    horsConnexion.value.enAttente.push({ code: texte, moyen, scanneLe: new Date().toISOString(), activiteId: activiteId.value });
+    enregistrerHorsConnexion();
+
+    return { accepte: true, titre: 'Entrée acceptée (hors connexion)', detail: `${libelleRole(fiche)} · sera envoyé au retour du réseau.` };
+}
+
+/** Au retour du réseau, chaque scan gardé est envoyé avec son heure réelle. */
+async function envoyerEnAttente() {
+    if (horsConnexion.value.enAttente.length === 0 || !reseau.value) {
+        return;
+    }
+
+    const bilan = { envoyes: 0, acceptes: 0, aExaminer: 0, refuses: 0 };
+
+    while (horsConnexion.value.enAttente.length > 0) {
+        const scan = horsConnexion.value.enAttente[0];
+        const reponse = await verifierCode(scan.activiteId, scan.code, `${scan.moyen} (hors connexion)`, { scanneLe: scan.scanneLe });
+        bilan.envoyes++;
+        bilan.acceptes += Number(reponse.resultat === 'accepte');
+        bilan.aExaminer += Number(reponse.resultat === 'deja_pointe');
+        bilan.refuses += Number(!['accepte', 'deja_pointe'].includes(reponse.resultat));
+        horsConnexion.value.enAttente.shift();
+        enregistrerHorsConnexion();
+    }
+
+    bilanEnvoi.value = bilan;
+    statistiques.value = await statistiquesPointage(activiteId.value);
+}
+
+const surReseau = () => {
+    enLigne.value = navigator.onLine;
+};
 
 const heure = (iso) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Abidjan' });
 const activite = computed(() => activites.value.find((candidate) => candidate.id === activiteId.value));
@@ -71,7 +171,7 @@ function decrire(reponse) {
 }
 
 async function afficherReponse(reponse) {
-    const description = decrire(reponse);
+    const description = reponse.titre ? reponse : decrire(reponse);
     retour.value = { ...description, cle: Date.now() };
 
     if ('vibrate' in navigator) {
@@ -83,7 +183,9 @@ async function afficherReponse(reponse) {
         retour.value = null;
     }, DUREE_RETOUR_MS);
 
-    statistiques.value = await statistiquesPointage(activiteId.value);
+    if (reseau.value) {
+        statistiques.value = await statistiquesPointage(activiteId.value);
+    }
 }
 
 async function lireCode(code, moyen) {
@@ -96,7 +198,7 @@ async function lireCode(code, moyen) {
 
     dernierCode = texte;
     derniereLecture = maintenant;
-    await afficherReponse(await verifierCode(activiteId.value, texte, moyen));
+    await afficherReponse(reseau.value ? await verifierCode(activiteId.value, texte, moyen) : await verifierHorsConnexion(texte, moyen));
 }
 
 async function demarrerCamera() {
@@ -159,6 +261,12 @@ watch(mode, async (nouveau) => {
     }
 });
 
+watch(reseau, (disponible) => {
+    if (disponible) {
+        envoyerEnAttente();
+    }
+});
+
 watch(activiteId, async () => {
     statistiques.value = await statistiquesPointage(activiteId.value);
     resultats.value = [];
@@ -166,7 +274,12 @@ watch(activiteId, async () => {
 });
 
 onMounted(async () => {
-    activites.value = await listerActivites();
+    window.addEventListener('online', surReseau);
+    window.addEventListener('offline', surReseau);
+    const toutes = await listerActivites();
+    activites.value = session.utilisateur?.activiteId ? toutes.filter((candidate) => candidate.id === session.utilisateur.activiteId) : toutes;
+    activiteId.value = activites.value.some((candidate) => candidate.id === activiteId.value) ? activiteId.value : (activites.value[0]?.id ?? '');
+    envoyerEnAttente();
     statistiques.value = await statistiquesPointage(activiteId.value);
 
     if (MODE_DEMONSTRATION) {
@@ -178,6 +291,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener('online', surReseau);
+    window.removeEventListener('offline', surReseau);
     scanner?.destroy();
     clearTimeout(minuterieRetour);
     clearTimeout(minuterieRecherche);
@@ -206,6 +321,13 @@ onBeforeUnmount(() => {
                 </div>
             </div>
         </section>
+
+        <Alerte v-if="!reseau" ton="attention" titre="Pas de réseau">
+            {{ prepare ? `Pointage hors connexion : ${horsConnexion.enAttente.length} passage(s) en attente d’envoi. La recherche par nom attend le retour du réseau.` : 'La liste hors connexion n’est pas préparée sur ce téléphone : utilisez la liste imprimée de secours.' }}
+        </Alerte>
+        <Alerte v-if="bilanEnvoi" ton="ok" titre="Passages hors connexion envoyés">
+            {{ bilanEnvoi.envoyes }} envoyé(s) : {{ bilanEnvoi.acceptes }} accepté(s){{ bilanEnvoi.aExaminer ? `, ${bilanEnvoi.aExaminer} déjà pointé(s) ailleurs, signalé(s) au Responsable` : '' }}{{ bilanEnvoi.refuses ? `, ${bilanEnvoi.refuses} refusé(s)` : '' }}.
+        </Alerte>
 
         <div class="grid grid-cols-3 gap-1 rounded-2xl bg-surface-2 p-1" role="tablist" aria-label="Façon de pointer">
             <button
@@ -266,6 +388,20 @@ onBeforeUnmount(() => {
                 <button type="submit" class="bouton-primaire flex-none">Vérifier</button>
             </form>
         </section>
+
+        <details class="carte p-5">
+            <summary class="cursor-pointer font-semibold">Sans réseau (hors connexion)</summary>
+            <div class="mt-3 flex flex-col gap-3 text-sm">
+                <p class="text-encre-douce">Avant l’ouverture des portes, avec du réseau, préparez ce téléphone : il garde seulement l’empreinte des codes admis, sans nom ni numéro, pendant 24 heures. Sans réseau, les entrées sont acceptées provisoirement, puis envoyées dès le retour du réseau.</p>
+                <p class="rounded-xl bg-attention-fond p-3 font-semibold text-attention">À tester sur place, avec deux téléphones, avant tout usage réel.</p>
+                <p>État : <strong>{{ reseau ? 'en ligne' : 'hors connexion' }}</strong> · {{ prepare ? `liste préparée (${Object.keys(prepare.codes).length} code(s))` : 'liste non préparée' }} · {{ horsConnexion.enAttente.length }} passage(s) en attente d’envoi</p>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" class="bouton-secondaire" :disabled="!reseau || preparation" @click="preparer">{{ preparation ? 'Préparation…' : (prepare ? 'Mettre à jour la liste' : 'Préparer le hors connexion') }}</button>
+                    <button v-if="horsConnexion.enAttente.length > 0 && reseau" type="button" class="bouton-discret" @click="envoyerEnAttente">Envoyer maintenant</button>
+                </div>
+                <label v-if="MODE_DEMONSTRATION" class="flex items-start gap-2"><input v-model="coupureSimulee" type="checkbox" class="mt-1 size-4 accent-[var(--c-accent)]"> Démonstration : simuler une coupure du réseau</label>
+            </div>
+        </details>
 
         <details v-if="MODE_DEMONSTRATION" class="carte p-5">
             <summary class="cursor-pointer font-semibold">QR codes de démonstration</summary>

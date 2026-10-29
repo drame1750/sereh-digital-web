@@ -1,9 +1,17 @@
+import { readFileSync } from 'node:fs';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
 export default defineConfig({
+    // Version et date de construction, affichées dans « État du système ».
+    define: {
+        __VERSION_APPLICATION__: JSON.stringify(version),
+        __DATE_CONSTRUCTION__: JSON.stringify(new Date().toISOString()),
+    },
     // Chemins relatifs : le site fonctionne sous l'adresse https://<organisation>.github.io/<dépôt>/.
     base: './',
     plugins: [

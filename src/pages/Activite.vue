@@ -86,6 +86,7 @@ onMounted(async () => {
                         <RouterLink :to="{ name: 'inscription', params: { id: activite.id } }" class="bouton-secondaire w-full">S'inscrire en attente</RouterLink>
                     </template>
                     <Alerte v-else ton="info" titre="Inscriptions fermées">Les inscriptions ne sont pas ouvertes pour cette activité.</Alerte>
+                    <RouterLink v-if="activite.listePublique?.active" :to="{ name: 'participants-publics', params: { id: activite.id } }" class="bouton-discret w-full">Voir la liste des participants</RouterLink>
                 </aside>
             </div>
         </div>

@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router';
 import logo from '../assets/logo-aeemci-provisoire.jpg';
 import Icone from '../components/Icone.vue';
 import MenuAffichage from '../components/MenuAffichage.vue';
+import { maintenance } from '../services/maintenance.js';
+import { parametres } from '../services/parametres.js';
 
 /**
  * Mise en page publique : en-tête avec les deux accès (cahier des charges, section 3), dont
@@ -11,6 +13,15 @@ import MenuAffichage from '../components/MenuAffichage.vue';
  */
 const route = useRoute();
 const surBandeau = computed(() => route.meta.enTeteSurBandeau === true);
+
+/** Pendant la maintenance, les pages publiques laissent place au message ; la connexion reste ouverte. */
+const enMaintenance = computed(() => maintenance.active && route.name !== 'connexion');
+const contacts = computed(() => [
+    parametres.contacts.telephone && `Téléphone : ${parametres.contacts.telephone}`,
+    parametres.contacts.whatsapp && `WhatsApp : ${parametres.contacts.whatsapp}`,
+    parametres.contacts.email && `E-mail : ${parametres.contacts.email}`,
+    parametres.contacts.horaires,
+].filter(Boolean));
 const menuOuvert = ref(false);
 
 watch(() => route.fullPath, () => {
@@ -71,7 +82,17 @@ watch(() => route.fullPath, () => {
         </header>
 
         <main id="contenu" class="flex-1" tabindex="-1">
-            <slot />
+            <section v-if="enMaintenance" class="flex flex-col items-center gap-4 bg-gradient-to-b from-vert-900 to-vert-950 px-4 pb-20 text-center text-white sm:px-6" :class="surBandeau ? 'pt-36' : 'pt-16'" aria-labelledby="titre-maintenance">
+                <span class="inline-flex size-16 items-center justify-center rounded-2xl bg-white/10 text-or-300"><Icone nom="parametres" class="size-8" /></span>
+                <h1 id="titre-maintenance" class="text-3xl font-extrabold tracking-tight">{{ parametres.identite.nom }} est en maintenance</h1>
+                <p class="max-w-xl text-vert-100">Le site revient très bientôt. Les inscriptions et les réponses déjà enregistrées sont conservées.</p>
+                <p v-if="maintenance.message" class="max-w-xl rounded-xl bg-white/10 px-4 py-3 font-semibold">{{ maintenance.message }}</p>
+                <div class="flex flex-col gap-1 text-sm text-vert-100/80">
+                    <p>{{ parametres.contacts.adresse || 'Siège régional : Katiola' }}</p>
+                    <p v-for="ligne in contacts" :key="ligne">{{ ligne }}</p>
+                </div>
+            </section>
+            <slot v-else />
         </main>
 
         <footer class="relative overflow-hidden bg-vert-950 text-vert-100">
@@ -83,11 +104,13 @@ watch(() => route.fullPath, () => {
                         Association des Élèves et Étudiants Musulmans de Côte d'Ivoire<br>
                         Secrétariat régional du Hambol (SEREH)
                     </p>
-                    <p class="text-sm font-semibold text-or-300 italic">« SEREH, la marche vers la réforme spirituelle »</p>
+                    <p class="text-sm font-semibold text-or-300 italic">« {{ parametres.identite.slogan }} »</p>
                 </div>
                 <div class="flex flex-col gap-2 text-sm">
                     <p class="font-semibold text-white">Contact</p>
-                    <p class="text-vert-100/80">Siège régional : Katiola. Les coordonnées officielles seront modifiables depuis l'administration.</p>
+                    <p class="text-vert-100/80">{{ parametres.contacts.adresse || 'Siège régional : Katiola' }}</p>
+                    <p v-for="ligne in contacts" :key="ligne" class="text-vert-100/80">{{ ligne }}</p>
+                    <p v-if="contacts.length === 0" class="text-vert-100/60">Coordonnées officielles à compléter.</p>
                     <div class="mt-2 flex flex-wrap gap-x-5 gap-y-2">
                         <RouterLink :to="{ name: 'confidentialite' }" class="font-semibold text-white underline underline-offset-4 hover:text-or-200">Confidentialité</RouterLink>
                         <RouterLink :to="{ name: 'connexion', query: { espace: 'administrateur' } }" class="font-semibold text-white underline underline-offset-4 hover:text-or-200">Espace administrateur</RouterLink>

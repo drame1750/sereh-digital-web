@@ -5,7 +5,9 @@ import Alerte from '../../components/Alerte.vue';
 import BadgeStatut from '../../components/BadgeStatut.vue';
 import Icone from '../../components/Icone.vue';
 import { dateCourte, instant } from '../../donnees-exemple.js';
-import { listerCourriers } from '../../services/courriers.js';
+import MessageFlottant from '../../components/MessageFlottant.vue';
+import { useAction } from '../../composables/useAction.js';
+import { listerCourriers, mettreBrouillonALaCorbeille } from '../../services/courriers.js';
 import { MODE_DEMONSTRATION } from '../../services/donnees.js';
 
 /**
@@ -31,9 +33,13 @@ const affiches = computed(() => (courriers.value ?? []).filter((courrier) => ({
 
 const nombreATraiter = computed(() => (courriers.value ?? []).filter((courrier) => courrier.statut === 'envoye' && courrier.nombres.aExaminer > 0).length);
 
-onMounted(async () => {
+async function charger() {
     courriers.value = await listerCourriers();
-});
+}
+
+const { enCours, confirmation, agir, erreurDe } = useAction(charger);
+
+onMounted(charger);
 </script>
 
 <template>
@@ -110,7 +116,13 @@ onMounted(async () => {
                     <div class="col-span-2 rounded-xl bg-surface-2 p-3 sm:col-span-1"><dt class="text-xs text-encre-douce">Sans réponse définitive</dt><dd class="text-xl font-bold tabular-nums">{{ courrier.nombres.enAttente }}</dd></div>
                 </template>
             </dl>
-            <p v-else class="text-sm text-encre-douce">Brouillon : {{ courrier.nombres.destinataires }} destinataire{{ courrier.nombres.destinataires > 1 ? 's' : '' }} prévu{{ courrier.nombres.destinataires > 1 ? 's' : '' }}. Rien n’est envoyé avant votre approbation.</p>
+            <div v-else class="flex flex-wrap items-center justify-between gap-3">
+                <p class="text-sm text-encre-douce">Brouillon : {{ courrier.nombres.destinataires }} destinataire{{ courrier.nombres.destinataires > 1 ? 's' : '' }} prévu{{ courrier.nombres.destinataires > 1 ? 's' : '' }}. Rien n’est envoyé avant votre approbation.</p>
+                <button type="button" class="bouton-discret" :disabled="enCours === courrier.id" @click="agir(courrier.id, () => mettreBrouillonALaCorbeille(courrier.id), 'Brouillon mis à la corbeille : vous pouvez le restaurer depuis les Archives.')"><Icone nom="fermer" class="size-4" /> Mettre à la corbeille</button>
+            </div>
+            <p v-if="erreurDe(courrier.id)" class="text-sm font-semibold text-danger" role="alert">{{ erreurDe(courrier.id) }}</p>
         </article>
+
+        <MessageFlottant :texte="confirmation" @fermer="confirmation = ''" />
     </div>
 </template>

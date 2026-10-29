@@ -1,5 +1,7 @@
 <script setup>
+import { computed } from 'vue';
 import Alerte from '../components/Alerte.vue';
+import { parametres } from '../services/parametres.js';
 
 /**
  * Politique de confidentialité : PROJET tiré du cahier des charges (section 10), à valider par le
@@ -12,6 +14,15 @@ const CONSERVATION = [
     ['Sauvegardes', 'Les 8 dernières, soit environ 2 mois'],
     ['Journaux techniques', '30 jours'],
 ];
+
+/** Coordonnées officielles, réglées dans les Paramètres. */
+const contacts = computed(() => [
+    parametres.contacts.adresse,
+    parametres.contacts.telephone && `Téléphone : ${parametres.contacts.telephone}`,
+    parametres.contacts.whatsapp && `WhatsApp : ${parametres.contacts.whatsapp}`,
+    parametres.contacts.email && `E-mail : ${parametres.contacts.email}`,
+].filter(Boolean));
+const contactsComplets = computed(() => Boolean(parametres.contacts.telephone || parametres.contacts.email));
 </script>
 
 <template>
@@ -26,7 +37,8 @@ const CONSERVATION = [
             <section class="flex flex-col gap-2">
                 <h2 class="text-lg font-bold">Qui est responsable de vos données</h2>
                 <p>L'Association des Élèves et Étudiants Musulmans de Côte d'Ivoire, Secrétariat régional du Hambol (SEREH), dont le siège est à Katiola.</p>
-                <p class="rounded-lg bg-attention-fond p-2 text-attention">À compléter par le SEREH : adresse, téléphone et contact pour les demandes.</p>
+                <p v-for="ligne in contacts" :key="ligne">{{ ligne }}</p>
+                <p v-if="!contactsComplets" class="rounded-lg bg-attention-fond p-2 text-attention">À compléter par le SEREH dans les Paramètres : téléphone et contact pour les demandes.</p>
             </section>
 
             <section class="flex flex-col gap-2">

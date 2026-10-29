@@ -9,35 +9,37 @@ import { dateSimple } from './donnees-exemple.js';
  * Chaque page est dessinée comme une feuille A4 à 200 points par pouce, puis rangée dans un vrai
  * fichier PDF, sans service extérieur. Le texte du PDF est une image : pour un courrier à signer, on
  * l'imprime, on le signe, on le scanne, puis on importe le PDF signé à la place.
+ *
+ * Les rapports d'activité et les planches de QR codes réutilisent les mêmes outils de mise en page.
  */
 const DPI = 200;
-const mm = (valeur) => (valeur * DPI) / 25.4;
-const pt = (valeur) => (valeur * DPI) / 72;
+export const mm = (valeur) => (valeur * DPI) / 25.4;
+export const pt = (valeur) => (valeur * DPI) / 72;
 
-const LARGEUR = Math.round(mm(210));
-const HAUTEUR = Math.round(mm(297));
-const MARGE = mm(22);
-const BAS = HAUTEUR - mm(32);
+export const LARGEUR = Math.round(mm(210));
+export const HAUTEUR = Math.round(mm(297));
+export const MARGE = mm(22);
+export const BAS = HAUTEUR - mm(32);
 const HAUT_SUITE = mm(30);
-const INTERLIGNE = pt(11) * 1.5;
+export const INTERLIGNE = pt(11) * 1.5;
 
 const POLICE = '"Montserrat Variable", Montserrat, system-ui, sans-serif';
-const ENCRE = '#1d1a16';
-const ENCRE_DOUCE = '#5c4f42';
-const VERT = '#0b5d2a';
-const OR = '#c9a24a';
+export const ENCRE = '#1d1a16';
+export const ENCRE_DOUCE = '#5c4f42';
+export const VERT = '#0b5d2a';
+export const OR = '#c9a24a';
 
-const police = (taille, graisse = 400, style = 'normal') => `${style} ${graisse} ${pt(taille)}px ${POLICE}`;
+export const police = (taille, graisse = 400, style = 'normal') => `${style} ${graisse} ${pt(taille)}px ${POLICE}`;
 
 /** Espaces insécables de la typographie française : « Objet : » ne se coupe jamais avant le deux-points. */
-function typographier(texte) {
+export function typographier(texte) {
     return texte
         .replace(/[ \t]+([?!:;»])/g, ' $1')
         .replace(/«[ \t]+/g, '« ')
         .replace(/'/g, '’');
 }
 
-function couperEnLignes(contexte, texte, largeur, retrait = 0) {
+export function couperEnLignes(contexte, texte, largeur, retrait = 0) {
     const mots = typographier(texte).replace(/[ \t]+/g, ' ').trim().split(' ').filter(Boolean);
     const lignes = [];
     let ligne = [];
@@ -61,7 +63,7 @@ function couperEnLignes(contexte, texte, largeur, retrait = 0) {
 }
 
 /** Ligne justifiée, sauf si les espaces deviendraient trop larges. */
-function ecrireLigne(contexte, mots, x, y, largeur, justifier) {
+export function ecrireLigne(contexte, mots, x, y, largeur, justifier) {
     const largeurMots = mots.reduce((total, mot) => total + contexte.measureText(mot).width, 0);
     const espace = mots.length > 1 ? (largeur - largeurMots) / (mots.length - 1) : 0;
 
@@ -79,7 +81,7 @@ function ecrireLigne(contexte, mots, x, y, largeur, justifier) {
     }
 }
 
-function texteCentre(contexte, texte, x, y, style, couleur) {
+export function texteCentre(contexte, texte, x, y, style, couleur) {
     contexte.font = style;
     contexte.fillStyle = couleur;
     contexte.textAlign = 'center';
@@ -87,13 +89,13 @@ function texteCentre(contexte, texte, x, y, style, couleur) {
     contexte.textAlign = 'left';
 }
 
-async function chargerPolices() {
+export async function chargerPolices() {
     await Promise.all([400, 600, 700, 800].map((graisse) => document.fonts.load(`${graisse} 40px ${POLICE}`).catch(() => {})));
 }
 
 let logoCharge = null;
 
-function chargerLogo() {
+export function chargerLogo() {
     logoCharge ??= new Promise((resoudre) => {
         const image = new Image();
         image.onload = () => resoudre(image);
@@ -104,7 +106,7 @@ function chargerLogo() {
     return logoCharge;
 }
 
-function fond(contexte, demonstration) {
+export function fond(contexte, demonstration) {
     contexte.fillStyle = '#ffffff';
     contexte.fillRect(0, 0, LARGEUR, HAUTEUR);
 

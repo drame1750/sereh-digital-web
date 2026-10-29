@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import { aAcces, session } from './services/session.js';
+import { actualiserCompteur } from './services/notifications.js';
+import { aAcces, session, verifierSession } from './services/session.js';
 
 /**
  * Adresses de la forme …/#/composants : GitHub Pages ne sert que des fichiers fixes, le signe « # »
@@ -48,6 +49,12 @@ export const router = createRouter({
             meta: { miseEnPage: 'publique', titre: 'Politique de confidentialité' },
         },
         {
+            path: '/activites/:id/participants',
+            name: 'participants-publics',
+            component: () => import('./pages/ParticipantsPublics.vue'),
+            meta: { miseEnPage: 'publique', titre: 'Participants' },
+        },
+        {
             path: '/connexion',
             name: 'connexion',
             component: () => import('./pages/Connexion.vue'),
@@ -64,6 +71,18 @@ export const router = createRouter({
             name: 'courrier-secretaire',
             component: () => import('./pages/secretaire/Courrier.vue'),
             meta: { miseEnPage: 'secretaire', titre: 'Courrier', acces: 'sr' },
+        },
+        {
+            path: '/espace-secretaire/notifications',
+            name: 'notifications-secretaire',
+            component: () => import('./pages/secretaire/Notifications.vue'),
+            meta: { miseEnPage: 'secretaire', titre: 'Mes notifications', acces: 'sr' },
+        },
+        {
+            path: '/espace-secretaire/compte',
+            name: 'compte-secretaire',
+            component: () => import('./pages/secretaire/MonCompte.vue'),
+            meta: { miseEnPage: 'secretaire', titre: 'Mon compte', acces: 'sr' },
         },
         {
             path: '/pointage',
@@ -138,6 +157,96 @@ export const router = createRouter({
             meta: { miseEnPage: 'admin', titre: 'Secrétaires régionaux', acces: 'admin' },
         },
         {
+            path: '/admin/notifications',
+            name: 'admin-notifications',
+            component: () => import('./pages/admin/Notifications.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Notifications', acces: 'admin' },
+        },
+        {
+            path: '/admin/recherche',
+            name: 'admin-recherche',
+            component: () => import('./pages/admin/Recherche.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Rechercher', acces: 'admin' },
+        },
+        {
+            path: '/admin/rapports',
+            name: 'admin-rapports',
+            component: () => import('./pages/admin/Rapports.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Rapports et statistiques', acces: 'admin' },
+        },
+        {
+            path: '/admin/rapports/exports',
+            name: 'admin-exports',
+            component: () => import('./pages/admin/Exports.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Exports et imports', acces: 'admin' },
+        },
+        {
+            path: '/admin/rapports/:id',
+            name: 'admin-rapport',
+            component: () => import('./pages/admin/FicheRapport.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Rapport d’activité', acces: 'admin' },
+        },
+        {
+            path: '/admin/participants',
+            name: 'admin-participants',
+            component: () => import('./pages/admin/Participants.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Participants', acces: 'admin' },
+        },
+        {
+            path: '/admin/participants/:id',
+            name: 'admin-participant',
+            component: () => import('./pages/admin/FicheParticipant.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Fiche d’un participant', acces: 'admin' },
+        },
+        {
+            path: '/admin/qr-codes',
+            name: 'admin-qr-codes',
+            component: () => import('./pages/admin/QrCodes.vue'),
+            meta: { miseEnPage: 'admin', titre: 'QR codes en lot', acces: 'admin' },
+        },
+        {
+            path: '/admin/pointage',
+            name: 'admin-pointage',
+            component: () => import('./pages/admin/PointageAdmin.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Pointage', acces: 'admin' },
+        },
+        {
+            path: '/admin/comptes',
+            name: 'admin-comptes',
+            component: () => import('./pages/admin/Comptes.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Comptes et utilisateurs', acces: 'admin' },
+        },
+        {
+            path: '/admin/archives',
+            name: 'admin-archives',
+            component: () => import('./pages/admin/Archives.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Archives', acces: 'admin' },
+        },
+        {
+            path: '/admin/parametres',
+            name: 'admin-parametres',
+            component: () => import('./pages/admin/Parametres.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Paramètres', acces: 'admin' },
+        },
+        {
+            path: '/admin/securite',
+            name: 'admin-securite',
+            component: () => import('./pages/admin/Securite.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Sécurité', acces: 'admin' },
+        },
+        {
+            path: '/admin/sauvegardes',
+            name: 'admin-sauvegardes',
+            component: () => import('./pages/admin/Sauvegardes.vue'),
+            meta: { miseEnPage: 'admin', titre: 'Sauvegardes', acces: 'admin' },
+        },
+        {
+            path: '/admin/etat-systeme',
+            name: 'admin-etat-systeme',
+            component: () => import('./pages/admin/EtatSysteme.vue'),
+            meta: { miseEnPage: 'admin', titre: 'État du système', acces: 'admin' },
+        },
+        {
             path: '/admin/:cle',
             name: 'rubrique',
             component: () => import('./pages/admin/RubriqueAVenir.vue'),
@@ -165,6 +274,9 @@ export const router = createRouter({
 const ESPACE_DE_CONNEXION = { admin: 'administrateur', pointage: 'pointage', sr: 'secretaire' };
 
 router.beforeEach((vers) => {
+    // Une session fermée à distance, un compte désactivé ou un remplacement terminé imposent de se reconnecter.
+    verifierSession();
+
     if (vers.meta.acces && !aAcces(vers.meta.acces)) {
         if (session.utilisateur) {
             session.message = 'Votre compte n’a pas accès à cette page.';
@@ -177,5 +289,6 @@ router.beforeEach((vers) => {
 });
 
 router.afterEach((vers) => {
+    actualiserCompteur();
     document.title = vers.name === 'accueil' ? 'SEREH Digital' : `${vers.meta.titre ?? 'SEREH Digital'} · SEREH Digital`;
 });

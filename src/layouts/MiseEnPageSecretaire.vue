@@ -4,6 +4,8 @@ import logo from '../assets/logo-aeemci-provisoire.jpg';
 import Icone from '../components/Icone.vue';
 import MenuAffichage from '../components/MenuAffichage.vue';
 import { useInactivite } from '../composables/useInactivite.js';
+import { maintenance } from '../services/maintenance.js';
+import { compteur } from '../services/notifications.js';
 import { seDeconnecter, session } from '../services/session.js';
 
 /**
@@ -34,6 +36,13 @@ function quitter() {
                     </span>
                 </RouterLink>
                 <div class="ml-auto flex items-center gap-1">
+                    <RouterLink :to="{ name: 'notifications-secretaire' }" class="relative inline-flex size-11 items-center justify-center rounded-xl hover:bg-white/10">
+                        <Icone nom="notifications" class="size-5" :libelle="`Mes notifications : ${compteur.nonLues} non lue${compteur.nonLues > 1 ? 's' : ''}`" />
+                        <span v-if="compteur.nonLues > 0" class="absolute top-1.5 right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-bold" :class="compteur.urgentes > 0 ? 'bg-danger text-white' : 'bg-or-300 text-vert-950'" aria-hidden="true">{{ compteur.nonLues }}</span>
+                    </RouterLink>
+                    <RouterLink :to="{ name: 'compte-secretaire' }" class="inline-flex size-11 items-center justify-center rounded-xl hover:bg-white/10">
+                        <Icone nom="comptes" class="size-5" libelle="Mon compte" />
+                    </RouterLink>
                     <MenuAffichage sur-fond-sombre />
                     <button type="button" class="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold hover:bg-white/10" @click="quitter">
                         <Icone nom="deconnexion" class="size-4" /> <span class="hidden sm:inline">Se déconnecter</span>
@@ -41,6 +50,9 @@ function quitter() {
                 </div>
             </div>
         </header>
+        <div v-if="maintenance.active" class="bg-attention-fond px-4 py-2.5 text-center text-sm font-semibold text-attention" role="status">
+            Maintenance en cours : vous pouvez consulter vos courriers, mais pas encore répondre.
+        </div>
         <main id="contenu" class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6" tabindex="-1">
             <slot />
         </main>

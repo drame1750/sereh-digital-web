@@ -19,6 +19,8 @@ const erreurs = ref({});
 const message = ref('');
 const resume = ref(null);
 const affiche = ref(null);
+const close = ref(false);
+const motifExceptionnel = ref('');
 
 const formulaire = reactive({
     titre: '',
@@ -58,6 +60,7 @@ onMounted(async () => {
         ouverturePrevue: activite.ouverturePrevue ?? '',
         fermeturePrevue: activite.fermeturePrevue ?? '',
     });
+    close.value = activite.archivee || activite.statut === 'terminee';
     chargee.value = true;
 });
 
@@ -77,8 +80,8 @@ async function envoyer() {
     envoi.value = true;
 
     try {
-        const id = await enregistrerActivite(identifiant.value, formulaire);
-        await router.push({ name: 'admin-activites', query: { enregistree: id } });
+        const id = await enregistrerActivite(identifiant.value, formulaire, motifExceptionnel.value);
+        await router.push(close.value ? { name: 'admin-archives' } : { name: 'admin-activites', query: { enregistree: id } });
     } catch (erreur) {
         erreurs.value = erreur.erreurs ?? {};
         message.value = erreur.message;
@@ -197,8 +200,16 @@ const champ = (cle) => ({ 'aria-invalid': erreurs.value[cle] ? 'true' : undefine
                 </div>
             </section>
 
+            <section v-if="close" class="carte flex flex-col gap-3 border-l-4 border-l-attention p-6" aria-labelledby="titre-exceptionnel">
+                <h2 id="titre-exceptionnel" class="text-lg font-bold">Modification exceptionnelle</h2>
+                <p class="text-sm text-encre-douce">Cette activité est close. La modifier est réservé à l’administrateur ; le motif est noté au journal d’audit.</p>
+                <label for="motif-exceptionnel" class="text-sm font-semibold">Motif de la modification</label>
+                <input id="motif-exceptionnel" v-model="motifExceptionnel" class="champ-saisie" maxlength="300" v-bind="champ('motifExceptionnel')">
+                <p v-if="erreurs.motifExceptionnel" id="erreur-motifExceptionnel" class="text-xs font-semibold text-danger">{{ erreurs.motifExceptionnel }}</p>
+            </section>
+
             <div class="flex flex-wrap justify-end gap-3">
-                <RouterLink :to="{ name: 'admin-activites' }" class="bouton-discret">Annuler</RouterLink>
+                <RouterLink :to="{ name: close ? 'admin-archives' : 'admin-activites' }" class="bouton-discret">Annuler</RouterLink>
                 <button type="submit" class="bouton-primaire" :disabled="envoi">{{ envoi ? 'Enregistrement…' : (identifiant ? 'Enregistrer les modifications' : 'Créer l’activité') }}</button>
             </div>
         </form>

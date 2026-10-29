@@ -1,11 +1,13 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import logo from '../assets/logo-aeemci-provisoire.jpg';
 import Icone from '../components/Icone.vue';
 import MenuAffichage from '../components/MenuAffichage.vue';
 import { useInactivite } from '../composables/useInactivite.js';
 import { RUBRIQUES } from '../rubriques.js';
+import { maintenance } from '../services/maintenance.js';
+import { compteur } from '../services/notifications.js';
 import { LIBELLES_ROLES, seDeconnecter, session } from '../services/session.js';
 
 /**
@@ -19,6 +21,7 @@ const route = useRoute();
 const router = useRouter();
 const repliee = ref(lireRepli());
 const panneauOuvert = ref(false);
+const recherche = ref('');
 
 function lireRepli() {
     try {
@@ -40,15 +43,25 @@ watch(() => route.fullPath, () => {
     panneauOuvert.value = false;
 });
 
-/** Les rubriques déjà construites ouvrent leur écran ; les autres, la page d'attente. */
-const ECRANS_CONSTRUITS = {
-    'tableau-de-bord': 'tableau-de-bord',
-    activites: 'admin-activites',
-    inscriptions: 'admin-inscriptions',
-    participants: 'admin-inscriptions',
-    pointage: 'pointage',
-    courriers: 'admin-courriers',
-    secretaires: 'admin-secretaires',
+/** L'écran ouvert par chaque rubrique de la barre latérale. */
+const ECRANS = {
+    'tableau-de-bord': { name: 'tableau-de-bord' },
+    notifications: { name: 'admin-notifications' },
+    rapports: { name: 'admin-rapports' },
+    activites: { name: 'admin-activites' },
+    inscriptions: { name: 'admin-inscriptions' },
+    participants: { name: 'admin-participants' },
+    accompagnateurs: { name: 'admin-participants', query: { role: 'accompagnateur' } },
+    'qr-codes': { name: 'admin-qr-codes' },
+    pointage: { name: 'admin-pointage' },
+    courriers: { name: 'admin-courriers' },
+    secretaires: { name: 'admin-secretaires' },
+    comptes: { name: 'admin-comptes' },
+    archives: { name: 'admin-archives' },
+    parametres: { name: 'admin-parametres' },
+    securite: { name: 'admin-securite' },
+    sauvegardes: { name: 'admin-sauvegardes' },
+    'etat-systeme': { name: 'admin-etat-systeme' },
 };
 
 useInactivite();
@@ -59,7 +72,49 @@ function quitter() {
 }
 
 function lienRubrique(rubrique) {
-    return ECRANS_CONSTRUITS[rubrique.cle] ? { name: ECRANS_CONSTRUITS[rubrique.cle] } : { name: 'rubrique', params: { cle: rubrique.cle } };
+    return ECRANS[rubrique.cle] ?? { name: 'rubrique', params: { cle: rubrique.cle } };
+}
+
+/** La rubrique allumée selon l'écran ouvert, fiches comprises (un participant, un rapport…). */
+const RUBRIQUE_DE_L_ECRAN = {
+    'tableau-de-bord': 'tableau-de-bord',
+    'admin-notifications': 'notifications',
+    'admin-rapports': 'rapports',
+    'admin-rapport': 'rapports',
+    'admin-exports': 'rapports',
+    'admin-activites': 'activites',
+    'admin-activite-nouvelle': 'activites',
+    'admin-activite-modifier': 'activites',
+    'admin-inscriptions': 'inscriptions',
+    'admin-participants': 'participants',
+    'admin-participant': 'participants',
+    'admin-qr-codes': 'qr-codes',
+    'admin-pointage': 'pointage',
+    'admin-courriers': 'courriers',
+    'admin-courrier': 'courriers',
+    'admin-courrier-nouveau': 'courriers',
+    'admin-courrier-modifier': 'courriers',
+    'admin-modeles-courrier': 'courriers',
+    'admin-secretaires': 'secretaires',
+    'admin-comptes': 'comptes',
+    'admin-archives': 'archives',
+    'admin-parametres': 'parametres',
+    'admin-securite': 'securite',
+    'admin-sauvegardes': 'sauvegardes',
+    'admin-etat-systeme': 'etat-systeme',
+};
+
+const rubriqueActive = computed(() => {
+    const cle = RUBRIQUE_DE_L_ECRAN[route.name];
+
+    return cle === 'participants' && route.query.role === 'accompagnateur' ? 'accompagnateurs' : (cle ?? route.params.cle);
+});
+
+function rechercher() {
+    if (recherche.value.trim().length >= 2) {
+        router.push({ name: 'admin-recherche', query: { q: recherche.value.trim() } });
+        recherche.value = '';
+    }
 }
 </script>
 
@@ -95,7 +150,8 @@ function lienRubrique(rubrique) {
                         :key="rubrique.cle"
                         :to="lienRubrique(rubrique)"
                         class="lien-barre"
-                        :class="repliee ? 'lg:justify-center lg:px-0' : ''"
+                        :class="[repliee ? 'lg:justify-center lg:px-0' : '', { actif: rubrique.cle === rubriqueActive }]"
+                        :aria-current="rubrique.cle === rubriqueActive ? 'page' : undefined"
                         :title="repliee ? rubrique.libelle : undefined"
                     >
                         <Icone :nom="rubrique.icone" class="size-5 flex-none" />
@@ -124,16 +180,19 @@ function lienRubrique(rubrique) {
                     <button type="button" class="inline-flex size-11 items-center justify-center rounded-xl hover:bg-surface-2 lg:hidden" :aria-expanded="panneauOuvert" @click="panneauOuvert = true">
                         <Icone nom="menu" class="size-6" libelle="Ouvrir les rubriques" />
                     </button>
-                    <label class="relative hidden max-w-md flex-1 sm:block">
-                        <span class="sr-only">Rechercher</span>
+                    <form class="relative hidden max-w-md flex-1 sm:block" role="search" @submit.prevent="rechercher">
+                        <label for="recherche-globale" class="sr-only">Rechercher</label>
                         <Icone nom="recherche" class="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-encre-douce" />
-                        <input type="search" class="champ-saisie min-h-11 pl-11" placeholder="Rechercher un participant, un courrier…" disabled>
-                    </label>
+                        <input id="recherche-globale" v-model="recherche" type="search" class="champ-saisie min-h-11 pl-11" placeholder="Rechercher un participant, un courrier…">
+                    </form>
+                    <RouterLink :to="{ name: 'admin-recherche' }" class="inline-flex size-11 items-center justify-center rounded-xl hover:bg-surface-2 sm:hidden">
+                        <Icone nom="recherche" class="size-5" libelle="Rechercher" />
+                    </RouterLink>
                     <div class="ml-auto flex items-center gap-1">
-                        <button type="button" class="relative inline-flex size-11 items-center justify-center rounded-xl hover:bg-surface-2" disabled>
-                            <Icone nom="notifications" class="size-5" libelle="Notifications (exemple : 3 non lues)" />
-                            <span class="absolute top-2 right-2 inline-flex size-4 items-center justify-center rounded-full bg-danger text-[0.625rem] font-bold text-white" aria-hidden="true">3</span>
-                        </button>
+                        <RouterLink :to="{ name: 'admin-notifications' }" class="relative inline-flex size-11 items-center justify-center rounded-xl hover:bg-surface-2">
+                            <Icone nom="notifications" class="size-5" :libelle="`Notifications : ${compteur.nonLues} non lue${compteur.nonLues > 1 ? 's' : ''}`" />
+                            <span v-if="compteur.nonLues > 0" class="absolute top-1.5 right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-bold text-white" :class="compteur.urgentes > 0 ? 'bg-danger' : 'bg-vert-700'" aria-hidden="true">{{ compteur.nonLues > 99 ? '99+' : compteur.nonLues }}</span>
+                        </RouterLink>
                         <MenuAffichage />
                         <div class="hidden text-right leading-tight md:block">
                             <p class="text-sm font-semibold">{{ session.utilisateur?.nom }}</p>
@@ -145,6 +204,11 @@ function lienRubrique(rubrique) {
                     </div>
                 </div>
             </header>
+
+            <div v-if="maintenance.active" class="flex items-center gap-2 border-b border-attention/30 bg-attention-fond px-4 py-2.5 text-sm font-semibold text-attention sm:px-6" role="status">
+                <Icone nom="alerte" class="size-4 flex-none" /> Maintenance en cours : les modifications sont bloquées, la consultation reste possible.
+                <RouterLink :to="{ name: 'admin-etat-systeme' }" class="ml-auto underline">État du système</RouterLink>
+            </div>
 
             <main id="contenu" class="flex-1 px-4 py-6 sm:px-6 lg:px-10" tabindex="-1">
                 <slot />
@@ -180,7 +244,7 @@ function lienRubrique(rubrique) {
     color: #fff;
 }
 
-.lien-barre.router-link-exact-active {
+.lien-barre.actif {
     background: linear-gradient(90deg, rgb(201 162 74 / 0.28), rgb(201 162 74 / 0.08));
     color: #fff;
     box-shadow: inset 3px 0 0 var(--color-or-400);

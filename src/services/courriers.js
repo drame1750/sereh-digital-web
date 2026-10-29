@@ -6,10 +6,11 @@ import {
     membresBureauExemple,
     modelesCourrierExemple,
     nouveauDestinataire,
-    parametresCourrierExemple,
 } from '../donnees-exemple.js';
 import { listerActivitesAdmin, noterOperation } from './donnees.js';
-import { COMPTES_DEMONSTRATION, session } from './session.js';
+import { verifierHorsMaintenance } from './maintenance.js';
+import { parametres } from './parametres.js';
+import { registre, session } from './session.js';
 
 /**
  * Courriers officiels et réponses des secrétaires régionaux (cahier des charges, section 6).
@@ -35,13 +36,16 @@ function lireEtat() {
         const etat = JSON.parse(window.sessionStorage.getItem(CLE_STOCKAGE) ?? 'null');
 
         if (etat?.courriers && etat?.modeles) {
+            etat.membres ??= structuredClone(membresBureauExemple);
+            etat.corbeille ??= [];
+
             return etat;
         }
     } catch {
         // Stockage indisponible : la démonstration repart des courriers d'exemple.
     }
 
-    return { courriers: courriersExemple(), modeles: structuredClone(modelesCourrierExemple), compteur: 5 };
+    return { courriers: courriersExemple(), modeles: structuredClone(modelesCourrierExemple), membres: structuredClone(membresBureauExemple), corbeille: [], compteur: 5 };
 }
 
 const etat = lireEtat();
@@ -54,9 +58,14 @@ function enregistrerEtat() {
     }
 }
 
+/** Écrit l'état complet dans l'onglet, pour qu'une sauvegarde le contienne même sans modification. */
+export function persisterEtat() {
+    enregistrerEtat();
+}
+
 const maintenant = () => new Date().toISOString();
 const auteur = () => session.utilisateur?.nom ?? 'Administrateur';
-const membre = (id) => membresBureauExemple.find((candidat) => candidat.id === id) ?? null;
+const membre = (id) => etat.membres.find((candidat) => candidat.id === id) ?? null;
 const finDeJournee = (iso) => new Date(`${iso}T23:59:59Z`).getTime();
 const joursAvant = (iso) => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${aujourdhui()}T00:00:00Z`)) / UN_JOUR_MS);
 
@@ -67,7 +76,7 @@ function noterDansLeCourrier(courrier, action, { membreId = null, parLeMembre = 
 const plusRecentEnTete = (entrees) => structuredClone(entrees).sort((a, b) => b.le.localeCompare(a.le));
 
 async function carteDesActivites() {
-    return new Map((await listerActivitesAdmin()).map((activite) => [activite.id, activite]));
+    return new Map((await listerActivitesAdmin({ archivees: 'toutes' })).map((activite) => [activite.id, activite]));
 }
 
 function resumerActivite(activite) {
@@ -237,13 +246,14 @@ function resumer(courrier, activites) {
  * journal d'audit.
  * ---------------------------------------------------------------------------------------------- */
 
-export const PARAMETRES_COURRIER = parametresCourrierExemple;
+/** En-tête, signature et pied de page des courriers, réglés dans les Paramètres. */
+export const PARAMETRES_COURRIER = parametres.courrier;
 
 /** Membres du bureau, par groupe : la Direction, puis chaque secrétariat. */
 export async function listerDestinatairesPossibles() {
     const groupes = new Map();
 
-    for (const candidat of membresBureauExemple) {
+    for (const candidat of etat.membres.filter((personne) => personne.actif !== false)) {
         if (!groupes.has(candidat.groupe)) {
             groupes.set(candidat.groupe, []);
         }
@@ -304,6 +314,7 @@ export function textesACompleter(courrier) {
  */
 export async function enregistrerCourrier(id, donnees, fichierChoisi = null) {
     await attendre();
+    verifierHorsMaintenance();
 
     if (donnees.objet.trim().length < 3) {
         throw Object.assign(new Error('Quelques informations sont à corriger.'), { erreurs: { objet: 'Indiquez l’objet du courrier (au moins 3 caractères).' } });
@@ -338,7 +349,7 @@ export async function enregistrerCourrier(id, donnees, fichierChoisi = null) {
         courrier = { id: `courrier-${crypto.randomUUID().slice(0, 8)}`, statut: 'brouillon', creeLe: maintenant(), envoyeLe: null, destinataires: [], historique: [], ...valeurs };
         etat.courriers.push(courrier);
         noterDansLeCourrier(courrier, 'Brouillon créé');
-        noterOperation('Brouillon de courrier créé', courrier.objet);
+        noterOperation('Brouillon de courrier créé', courrier.objet, 'courriers');
     }
 
     if (fichierChoisi) {
@@ -400,6 +411,7 @@ export function erreursAvantEnvoi(courrier) {
  */
 export async function envoyerCourrier(id, approuve) {
     await attendre();
+    verifierHorsMaintenance();
     const courrier = etat.courriers.find((candidat) => candidat.id === id);
 
     if (!courrier || courrier.statut !== 'brouillon') {
@@ -424,7 +436,7 @@ export async function envoyerCourrier(id, approuve) {
 
     const nombre = courrier.destinataires.length;
     noterDansLeCourrier(courrier, 'Courrier approuvé et envoyé', { detail: `${nombre} destinataire${nombre > 1 ? 's' : ''}` });
-    noterOperation('Courrier envoyé', `${courrier.objet} · ${nombre} destinataire${nombre > 1 ? 's' : ''}`);
+    noterOperation('Courrier envoyé', `${courrier.objet} · ${nombre} destinataire${nombre > 1 ? 's' : ''}`, 'courriers');
     enregistrerEtat();
 }
 
@@ -450,6 +462,7 @@ function trouverDestinataire(courrierId, membreId) {
 /** Réponse de l'administrateur à une demande de précision. */
 export async function repondreQuestion(courrierId, membreId, questionId, texte) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = trouverDestinataire(courrierId, membreId);
     const question = destinataire.questions.find((candidate) => candidate.id === questionId);
 
@@ -460,7 +473,7 @@ export async function repondreQuestion(courrierId, membreId, questionId, texte) 
     question.reponse = texte.trim();
     question.reponduLe = maintenant();
     noterDansLeCourrier(courrier, 'Réponse à une question', { membreId, detail: texte.trim() });
-    noterOperation('Réponse à une question sur un courrier', `${membre(membreId)?.nom} · ${courrier.objet}`);
+    noterOperation('Réponse à une question sur un courrier', `${membre(membreId)?.nom} · ${courrier.objet}`, 'courriers');
     enregistrerEtat();
 }
 
@@ -471,6 +484,7 @@ export async function repondreQuestion(courrierId, membreId, questionId, texte) 
  */
 export async function deciderDemande(courrierId, membreId, demandeId, acceptee, commentaire) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = trouverDestinataire(courrierId, membreId);
     const demande = destinataire.demandes.find((candidate) => candidate.id === demandeId && !candidate.decision);
 
@@ -495,23 +509,25 @@ export async function deciderDemande(courrierId, membreId, demandeId, acceptee, 
         noterDansLeCourrier(courrier, 'Demande de modification refusée', { membreId, detail: demande.commentaire });
     }
 
-    noterOperation(acceptee ? 'Demande de modification acceptée' : 'Demande de modification refusée', `${membre(membreId)?.nom} · ${courrier.objet}`);
+    noterOperation(acceptee ? 'Demande de modification acceptée' : 'Demande de modification refusée', `${membre(membreId)?.nom} · ${courrier.objet}`, 'courriers');
     enregistrerEtat();
 }
 
 /** Une réponse arrivée après la date limite ne compte qu'une fois acceptée par l'administrateur. */
 export async function accepterReponseTardive(courrierId, membreId) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = trouverDestinataire(courrierId, membreId);
     destinataire.tardiveAcceptee = true;
     noterDansLeCourrier(courrier, 'Réponse tardive acceptée', { membreId });
-    noterOperation('Réponse tardive acceptée', `${membre(membreId)?.nom} · ${courrier.objet}`);
+    noterOperation('Réponse tardive acceptée', `${membre(membreId)?.nom} · ${courrier.objet}`, 'courriers');
     enregistrerEtat();
 }
 
 /** Rouvre temporairement la réponse d'un destinataire en retard, jusqu'à une nouvelle date limite. */
 export async function accorderDelai(courrierId, membreId, date) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = trouverDestinataire(courrierId, membreId);
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < aujourdhui()) {
@@ -520,7 +536,7 @@ export async function accorderDelai(courrierId, membreId, date) {
 
     destinataire.delaiJusquau = date;
     noterDansLeCourrier(courrier, 'Délai accordé', { membreId, detail: `Jusqu’au ${dateSimple(date)}` });
-    noterOperation('Délai de réponse accordé', `${membre(membreId)?.nom} · ${courrier.objet}`);
+    noterOperation('Délai de réponse accordé', `${membre(membreId)?.nom} · ${courrier.objet}`, 'courriers');
     enregistrerEtat();
 }
 
@@ -530,6 +546,7 @@ export async function accorderDelai(courrierId, membreId, date) {
  */
 export async function remplacerDocument(courrierId, fichier) {
     await attendre();
+    verifierHorsMaintenance();
     const courrier = etat.courriers.find((candidat) => candidat.id === courrierId);
 
     if (!fichier) {
@@ -542,7 +559,7 @@ export async function remplacerDocument(courrierId, fichier) {
     courrier.fichier = nouveau;
     courrier.documentRemplaceLe = maintenant();
     noterDansLeCourrier(courrier, 'Document remplacé', { detail: `${ancien} → PDF « ${nouveau.nom} »` });
-    noterOperation('Document de courrier remplacé', courrier.objet);
+    noterOperation('Document de courrier remplacé', courrier.objet, 'courriers');
     enregistrerEtat();
 }
 
@@ -558,6 +575,7 @@ export async function listerModeles() {
 
 export async function enregistrerModele(id, donnees) {
     await attendre();
+    verifierHorsMaintenance();
     const erreurs = {};
 
     if (donnees.nom.trim().length < 3) {
@@ -586,7 +604,7 @@ export async function enregistrerModele(id, donnees) {
         etat.modeles.push(modele);
     }
 
-    noterOperation('Modèle de courrier enregistré, à approuver', modele.nom);
+    noterOperation('Modèle de courrier enregistré, à approuver', modele.nom, 'courriers');
     enregistrerEtat();
 
     return modele.id;
@@ -594,10 +612,11 @@ export async function enregistrerModele(id, donnees) {
 
 export async function approuverModele(id) {
     await attendre();
+    verifierHorsMaintenance();
     const modele = etat.modeles.find((candidat) => candidat.id === id);
     modele.approuve = true;
     modele.approuveLe = maintenant();
-    noterOperation('Modèle de courrier approuvé', modele.nom);
+    noterOperation('Modèle de courrier approuvé', modele.nom, 'courriers');
     enregistrerEtat();
 }
 
@@ -746,6 +765,7 @@ function refuserSiVerrouillee(destinataire) {
 /** Brouillon de réponse : il se reprend plus tard et ne vaut jamais confirmation. */
 export async function enregistrerBrouillonReponse(id, reponse) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = monSuivi(id);
     refuserSiVerrouillee(destinataire);
     destinataire.reponse = lireReponse(reponse);
@@ -759,6 +779,7 @@ export async function enregistrerBrouillonReponse(id, reponse) {
  */
 export async function confirmerReponse(id, reponse) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = monSuivi(id);
     refuserSiVerrouillee(destinataire);
     const lue = lireReponse(reponse);
@@ -784,13 +805,14 @@ export async function confirmerReponse(id, reponse) {
     const action = lue.choix === 'presence' ? 'Présence confirmée définitivement' : 'Absence déclarée définitivement';
     const details = [lue.motif, lue.justificatif ? `justificatif : ${lue.justificatif.nom}` : '', destinataire.tardive ? 'Réponse tardive' : ''].filter(Boolean);
     noterDansLeCourrier(courrier, action, { membreId: destinataire.membreId, parLeMembre: true, detail: details.join(' · ') });
-    noterOperation(lue.choix === 'presence' ? 'Présence confirmée' : 'Absence déclarée', `${membre(destinataire.membreId)?.nom} · ${courrier.objet}`);
+    noterOperation(lue.choix === 'presence' ? 'Présence confirmée' : 'Absence déclarée', `${membre(destinataire.membreId)?.nom} · ${courrier.objet}`, 'courriers');
     enregistrerEtat();
 }
 
 /** Demande motivée de modification d'une réponse verrouillée, examinée par l'administrateur. */
 export async function demanderModification(id, motif) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = monSuivi(id);
 
     if (!destinataire.definitive) {
@@ -807,13 +829,14 @@ export async function demanderModification(id, motif) {
 
     destinataire.demandes.push({ id: crypto.randomUUID(), motif: motif.trim(), demandeeLe: maintenant(), decision: null, decideeLe: null, commentaire: '' });
     noterDansLeCourrier(courrier, 'Demande de modification envoyée', { membreId: destinataire.membreId, parLeMembre: true, detail: motif.trim() });
-    noterOperation('Demande de modification reçue', `${membre(destinataire.membreId)?.nom} · ${courrier.objet}`);
+    noterOperation('Demande de modification reçue', `${membre(destinataire.membreId)?.nom} · ${courrier.objet}`, 'courriers');
     enregistrerEtat();
 }
 
 /** Demande de précision à l'administrateur. Elle ne remplace pas la réponse. */
 export async function poserQuestion(id, texte) {
     await attendre();
+    verifierHorsMaintenance();
     const { courrier, destinataire } = monSuivi(id);
 
     if (texte.trim().length < 5) {
@@ -822,7 +845,7 @@ export async function poserQuestion(id, texte) {
 
     destinataire.questions.push({ id: crypto.randomUUID(), texte: texte.trim(), poseeLe: maintenant(), reponse: '', reponduLe: null });
     noterDansLeCourrier(courrier, 'Question posée', { membreId: destinataire.membreId, parLeMembre: true, detail: texte.trim() });
-    noterOperation('Question reçue sur un courrier', `${membre(destinataire.membreId)?.nom} · ${courrier.objet}`);
+    noterOperation('Question reçue sur un courrier', `${membre(destinataire.membreId)?.nom} · ${courrier.objet}`, 'courriers');
     enregistrerEtat();
 }
 
@@ -867,9 +890,9 @@ export async function monHistorique(nombre = 10) {
 
 export async function listerMembres() {
     await attendre();
-    const comptes = new Set(COMPTES_DEMONSTRATION.map((compte) => compte.membreId).filter(Boolean));
+    const comptes = new Set(registre.comptes.filter((compte) => compte.actif).map((compte) => compte.membreId).filter(Boolean));
 
-    return membresBureauExemple.map((candidat) => {
+    return etat.membres.map((candidat) => {
         const suivis = etat.courriers
             .filter((courrier) => courrier.statut === 'envoye')
             .flatMap((courrier) => courrier.destinataires
@@ -878,7 +901,7 @@ export async function listerMembres() {
 
         return {
             ...candidat,
-            compteDemonstration: comptes.has(candidat.id),
+            aUnCompte: comptes.has(candidat.id),
             nombres: {
                 recus: suivis.length,
                 nonConsultes: suivis.filter((suivi) => suivi.consultation === 'non-consulte').length,
@@ -888,4 +911,321 @@ export async function listerMembres() {
             },
         };
     });
+}
+
+/** Ajoute un membre du bureau, ou modifie sa fiche. Un membre qui quitte le bureau est retiré, jamais effacé. */
+export async function enregistrerMembre(id, donnees) {
+    await attendre();
+    verifierHorsMaintenance();
+    const erreurs = {};
+
+    if (donnees.nom.trim().length < 3) {
+        erreurs.nom = 'Indiquez le nom complet (au moins 3 caractères).';
+    }
+
+    if (donnees.poste.trim().length < 3) {
+        erreurs.poste = 'Indiquez le poste.';
+    }
+
+    if (!donnees.groupe) {
+        erreurs.groupe = 'Choisissez le secrétariat.';
+    }
+
+    if (Object.keys(erreurs).length > 0) {
+        throw Object.assign(new Error('Quelques informations sont à corriger.'), { erreurs });
+    }
+
+    const valeurs = { nom: donnees.nom.trim(), poste: donnees.poste.trim(), groupe: donnees.groupe, actif: donnees.actif !== false };
+    let fiche = etat.membres.find((candidat) => candidat.id === id);
+
+    if (fiche) {
+        Object.assign(fiche, valeurs);
+        noterOperation(valeurs.actif ? 'Fiche d’un membre du bureau modifiée' : 'Membre retiré du bureau', fiche.nom, 'comptes');
+    } else {
+        fiche = { id: `membre-${crypto.randomUUID().slice(0, 8)}`, ...valeurs };
+        etat.membres.push(fiche);
+        noterOperation('Membre du bureau ajouté', `${fiche.nom} · ${fiche.groupe}`, 'comptes');
+    }
+
+    enregistrerEtat();
+
+    return fiche.id;
+}
+
+/** Membres du bureau, pour relier un compte à une fiche. */
+export async function listerFichesMembres() {
+    return structuredClone(etat.membres);
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Corbeille des brouillons : un courrier envoyé ne s'efface jamais, un brouillon peut être jeté puis
+ * restauré, ou supprimé définitivement après confirmation.
+ * ---------------------------------------------------------------------------------------------- */
+
+export async function mettreBrouillonALaCorbeille(id) {
+    await attendre();
+    verifierHorsMaintenance();
+    const courrier = etat.courriers.find((candidat) => candidat.id === id);
+
+    if (courrier?.statut !== 'brouillon') {
+        throw new Error('Seul un brouillon peut aller à la corbeille : un courrier envoyé reste dans l’historique.');
+    }
+
+    etat.courriers = etat.courriers.filter((candidat) => candidat.id !== id);
+    etat.corbeille.unshift({ type: 'courrier', id, titre: courrier.objet, supprimeLe: maintenant(), supprimePar: auteur(), objet: courrier });
+    noterOperation('Brouillon de courrier mis à la corbeille', courrier.objet, 'archives');
+    enregistrerEtat();
+}
+
+export async function listerCorbeilleCourriers() {
+    await attendre();
+
+    return etat.corbeille.map(({ objet, ...element }) => structuredClone(element));
+}
+
+export async function restaurerBrouillon(id) {
+    await attendre();
+    verifierHorsMaintenance();
+    const element = etat.corbeille.find((candidat) => candidat.id === id);
+    etat.corbeille = etat.corbeille.filter((candidat) => candidat.id !== id);
+    etat.courriers.push(element.objet);
+    noterOperation('Brouillon de courrier restauré', element.titre, 'archives');
+    enregistrerEtat();
+}
+
+export async function supprimerBrouillonDefinitivement(id) {
+    await attendre();
+    verifierHorsMaintenance();
+    const element = etat.corbeille.find((candidat) => candidat.id === id);
+    etat.corbeille = etat.corbeille.filter((candidat) => candidat.id !== id);
+    noterOperation('Brouillon de courrier supprimé définitivement', element.titre, 'archives');
+    enregistrerEtat();
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Statistiques et exports des réponses (section 8). Les brouillons ne comptent jamais comme des
+ * confirmations ; une réponse tardive ne compte qu'une fois acceptée.
+ * ---------------------------------------------------------------------------------------------- */
+
+const LIBELLES_REPONSE = {
+    information: 'Pour information',
+    'en-attente-reponse': 'En attente de réponse',
+    brouillon: 'Brouillon (non compté)',
+    reouverte: 'Réponse rouverte',
+    'presence-confirmee': 'Présence confirmée',
+    'absence-declaree': 'Absence déclarée',
+};
+
+function suivisEnvoyes(activiteId) {
+    return etat.courriers
+        .filter((courrier) => courrier.statut === 'envoye' && (!activiteId || courrier.activiteId === activiteId))
+        .flatMap((courrier) => courrier.destinataires.map((destinataire) => ({ courrier, destinataire, membre: membre(destinataire.membreId), suivi: suivre(courrier, destinataire) })));
+}
+
+/**
+ * Synthèse des réponses des membres du bureau, pour une activité ou pour tous les courriers :
+ * consultations, réponses en attente, confirmations, absences et motifs, résultats par secrétariat
+ * et évolution des confirmations jour après jour.
+ */
+export async function syntheseReponses(activiteId = '') {
+    await attendre();
+    const suivis = suivisEnvoyes(activiteId);
+    const attendus = suivis.filter(({ courrier }) => courrier.reponseAttendue);
+    const comptees = attendus.filter(({ suivi }) => suivi.confirmationComptee);
+    const groupes = new Map();
+
+    for (const element of attendus) {
+        const groupe = element.membre?.groupe ?? 'Autre';
+
+        if (!groupes.has(groupe)) {
+            groupes.set(groupe, { groupe, destinataires: 0, consultes: 0, confirmations: 0, presences: 0, absences: 0, enAttente: 0 });
+        }
+
+        const ligne = groupes.get(groupe);
+        ligne.destinataires++;
+        ligne.consultes += Number(Boolean(element.destinataire.consulteLe));
+        ligne.confirmations += Number(element.suivi.confirmationComptee);
+        ligne.presences += Number(element.suivi.confirmationComptee && element.destinataire.reponse.choix === 'presence');
+        ligne.absences += Number(element.suivi.confirmationComptee && element.destinataire.reponse.choix === 'absence');
+        ligne.enAttente += Number(!element.destinataire.definitive);
+    }
+
+    const parJour = new Map();
+
+    for (const { destinataire } of comptees) {
+        const jourConfirmation = (destinataire.confirmeeLe ?? '').slice(0, 10);
+
+        if (jourConfirmation) {
+            parJour.set(jourConfirmation, (parJour.get(jourConfirmation) ?? 0) + 1);
+        }
+    }
+
+    let cumul = 0;
+    const evolution = [...parJour.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([jourConfirmation, nombre]) => {
+        cumul += nombre;
+
+        return { jour: jourConfirmation, nombre, cumul };
+    });
+
+    return {
+        courriers: new Set(suivis.map(({ courrier }) => courrier.id)).size,
+        destinataires: suivis.length,
+        consultes: suivis.filter(({ destinataire }) => destinataire.consulteLe).length,
+        enAttente: attendus.filter(({ destinataire }) => !destinataire.definitive).length,
+        brouillons: attendus.filter(({ suivi }) => suivi.reponse === 'brouillon').length,
+        confirmations: comptees.length,
+        presences: comptees.filter(({ destinataire }) => destinataire.reponse.choix === 'presence').length,
+        absences: comptees.filter(({ destinataire }) => destinataire.reponse.choix === 'absence').length,
+        tardivesAExaminer: attendus.filter(({ suivi }) => suivi.tardiveAExaminer).length,
+        motifs: comptees
+            .filter(({ destinataire }) => destinataire.reponse.choix === 'absence')
+            .map(({ membre: personne, destinataire, courrier }) => ({ membre: personne?.nom ?? '', groupe: personne?.groupe ?? '', motif: destinataire.reponse.motif, courrier: courrier.objet })),
+        parSecretariat: [...groupes.values()],
+        evolution,
+    };
+}
+
+/** Lignes de l'export des réponses : une ligne par destinataire, sans numéro de téléphone. */
+export async function lignesReponses(activiteId = '') {
+    await attendre();
+
+    return suivisEnvoyes(activiteId).map(({ courrier, destinataire, membre: personne, suivi }) => ({
+        Référence: courrier.reference,
+        Courrier: courrier.objet,
+        Secrétariat: personne?.groupe ?? '',
+        Membre: personne?.nom ?? '',
+        Poste: personne?.poste ?? '',
+        Consultation: destinataire.consulteLe ? 'Consulté' : 'Non consulté',
+        Réponse: LIBELLES_REPONSE[suivi.reponse],
+        'Motif d’absence': destinataire.definitive && destinataire.reponse?.choix === 'absence' ? destinataire.reponse.motif : '',
+        'Confirmée le': destinataire.confirmeeLe ? destinataire.confirmeeLe.slice(0, 10) : '',
+        Tardive: destinataire.tardive ? (destinataire.tardiveAcceptee ? 'Oui, acceptée' : 'Oui, à examiner') : 'Non',
+    }));
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Notifications liées aux courriers (module 10). Elles sont déduites des données, pour que le centre
+ * de notifications reste exact même après une correction.
+ * ---------------------------------------------------------------------------------------------- */
+
+/** Le rappel en cours : le plus proche des rappels prévus (7, 3 ou 1 jour) déjà atteint. */
+function rappelEnCours(jours, rappels) {
+    const atteints = rappels.filter((nombre) => jours >= 0 && jours <= nombre);
+
+    return atteints.length > 0 ? Math.min(...atteints) : null;
+}
+
+const instantDuRappel = (echeance, rappel) => new Date(Date.parse(`${echeance}T08:00:00Z`) - rappel * UN_JOUR_MS).toISOString();
+
+/**
+ * Événements à signaler à l'administration : questions, demandes de modification, réponses
+ * tardives, confirmations reçues, dates limites dépassées et rappels avant la date limite.
+ *
+ * @param {number[]} rappels jours avant la date limite (7, 3, 1) pour lesquels un rappel est prévu
+ */
+export function evenementsCourriersAdmin(rappels) {
+    const evenements = [];
+    const lien = (courrier) => ({ name: 'admin-courrier', params: { id: courrier.id } });
+
+    for (const courrier of etat.courriers.filter((candidat) => candidat.statut === 'envoye')) {
+        for (const destinataire of courrier.destinataires) {
+            const personne = membre(destinataire.membreId)?.nom ?? 'Un membre';
+            const suivi = suivre(courrier, destinataire);
+
+            for (const question of destinataire.questions.filter((candidate) => !candidate.reponse)) {
+                evenements.push({ id: `question-${question.id}`, le: question.poseeLe, categorie: 'courriers', urgente: false, titre: 'Question à traiter', texte: `${personne} · ${courrier.objet}`, lien: lien(courrier) });
+            }
+
+            for (const demande of destinataire.demandes.filter((candidate) => !candidate.decision)) {
+                evenements.push({ id: `demande-${demande.id}`, le: demande.demandeeLe, categorie: 'confirmations', urgente: false, titre: 'Demande de modification à décider', texte: `${personne} · ${courrier.objet}`, lien: lien(courrier) });
+            }
+
+            if (suivi.tardiveAExaminer) {
+                evenements.push({ id: `tardive-${courrier.id}-${destinataire.membreId}`, le: destinataire.confirmeeLe, categorie: 'confirmations', urgente: false, titre: 'Réponse tardive à examiner', texte: `${personne} · ${courrier.objet}`, lien: lien(courrier) });
+            }
+
+            if (destinataire.definitive && destinataire.confirmeeLe) {
+                evenements.push({ id: `confirmation-${courrier.id}-${destinataire.membreId}-${destinataire.confirmeeLe}`, le: destinataire.confirmeeLe, categorie: 'confirmations', urgente: false, titre: destinataire.reponse.choix === 'presence' ? 'Présence confirmée' : 'Absence déclarée', texte: `${personne} · ${courrier.objet}`, lien: lien(courrier) });
+            }
+        }
+
+        if (!courrier.reponseAttendue || !courrier.echeance) {
+            continue;
+        }
+
+        const sansReponse = courrier.destinataires.filter((destinataire) => !destinataire.definitive).length;
+        const jours = joursAvant(courrier.echeance);
+        const rappel = rappelEnCours(jours, rappels);
+        const pluriel = sansReponse > 1;
+
+        if (sansReponse > 0 && jours < 0) {
+            evenements.push({ id: `depassee-${courrier.id}`, le: `${courrier.echeance}T23:59:00.000Z`, categorie: 'rappels', urgente: true, titre: 'Date limite dépassée', texte: `${sansReponse} membre${pluriel ? 's' : ''} sans réponse · ${courrier.objet}`, lien: lien(courrier) });
+        } else if (sansReponse > 0 && rappel !== null) {
+            evenements.push({ id: `rappel-admin-${courrier.id}-J${rappel}`, le: instantDuRappel(courrier.echeance, rappel), categorie: 'rappels', urgente: rappel === 1, titre: `Rappel J-${rappel} : réponses attendues`, texte: `${sansReponse} membre${pluriel ? 's n’ont' : ' n’a'} pas encore confirmé · ${courrier.objet}`, lien: lien(courrier) });
+        }
+    }
+
+    return evenements;
+}
+
+/**
+ * Événements pour un membre du bureau : nouveaux courriers, décisions de l'administrateur, documents
+ * remplacés et rappels avant la date limite tant qu'il n'a pas confirmé.
+ */
+export function evenementsCourriersMembre(membreId, rappels) {
+    const evenements = [];
+    const lien = (courrier) => ({ name: 'courrier-secretaire', params: { id: courrier.id } });
+
+    for (const courrier of etat.courriers.filter((candidat) => candidat.statut === 'envoye')) {
+        const destinataire = courrier.destinataires.find((candidat) => candidat.membreId === membreId);
+
+        if (!destinataire) {
+            continue;
+        }
+
+        const suivi = suivre(courrier, destinataire);
+        evenements.push({ id: `nouveau-${courrier.id}`, le: destinataire.affecteLe, categorie: 'courriers', urgente: false, titre: 'Nouveau courrier', texte: courrier.objet, lien: lien(courrier) });
+
+        if (courrier.documentRemplaceLe) {
+            evenements.push({ id: `remplace-${courrier.id}-${courrier.documentRemplaceLe}`, le: courrier.documentRemplaceLe, categorie: 'courriers', urgente: false, titre: 'Document du courrier remplacé', texte: courrier.objet, lien: lien(courrier) });
+        }
+
+        for (const entree of courrier.historique.filter((candidate) => candidate.membreId === membreId && !candidate.parLeMembre)) {
+            evenements.push({ id: `decision-${courrier.id}-${entree.le}`, le: entree.le, categorie: 'confirmations', urgente: false, titre: entree.action, texte: courrier.objet, lien: lien(courrier) });
+        }
+
+        if (!courrier.reponseAttendue || destinataire.definitive || !suivi.echeance) {
+            continue;
+        }
+
+        const jours = joursAvant(suivi.echeance);
+        const rappel = rappelEnCours(jours, rappels);
+
+        if (jours < 0) {
+            evenements.push({ id: `depassee-moi-${courrier.id}`, le: `${suivi.echeance}T23:59:00.000Z`, categorie: 'rappels', urgente: true, titre: 'Date limite dépassée', texte: `Vous pouvez encore répondre, mais la réponse sera marquée tardive · ${courrier.objet}`, lien: lien(courrier) });
+        } else if (rappel !== null) {
+            const reste = jours === 0 ? 'Dernier jour' : `Plus que ${jours} jour${jours > 1 ? 's' : ''}`;
+            evenements.push({ id: `rappel-${courrier.id}-J${rappel}`, le: instantDuRappel(suivi.echeance, rappel), categorie: 'rappels', urgente: rappel === 1, titre: `Rappel J-${rappel} : réponse attendue`, texte: `${reste} pour répondre · ${courrier.objet}`, lien: lien(courrier) });
+        }
+    }
+
+    return evenements;
+}
+
+/** Courriers et membres dont le texte correspond, pour la recherche globale. */
+export async function rechercherDansLesCourriers(texte) {
+    const recherche = texte.trim().toLocaleLowerCase('fr');
+
+    if (recherche.length < 2) {
+        return { courriers: [], membres: [] };
+    }
+
+    return {
+        courriers: etat.courriers
+            .filter((courrier) => `${courrier.reference} ${courrier.objet}`.toLocaleLowerCase('fr').includes(recherche))
+            .map((courrier) => ({ id: courrier.id, reference: courrier.reference, objet: courrier.objet, statut: courrier.statut })),
+        membres: etat.membres
+            .filter((personne) => `${personne.nom} ${personne.poste} ${personne.groupe}`.toLocaleLowerCase('fr').includes(recherche))
+            .map((personne) => structuredClone(personne)),
+    };
 }

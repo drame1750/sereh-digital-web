@@ -80,29 +80,113 @@ export const inscriptionsExemple = [
 /** Nombre de places déjà prises pour la démonstration, en plus des inscriptions ci-dessus. */
 export const placesDejaPrisesExemple = { 'nuit-du-coran': 178 };
 
-export const tableauDeBordExemple = {
-    indicateurs: [
-        { libelle: 'Inscriptions reçues', valeur: 342, icone: 'inscriptions', detail: 'Nuit du Coran' },
-        { libelle: 'Participants admis', valeur: 318, icone: 'participants', detail: 'dont 64 accompagnateurs' },
-        { libelle: 'Courriers en attente', valeur: 7, icone: 'courrier', detail: 'sur 18 envoyés' },
-        { libelle: 'Confirmations définitives', valeur: 11, icone: 'secretaires', detail: 'brouillons exclus' },
-    ],
-    alertes: [
-        { ton: 'attention', titre: '24 inscriptions en attente', texte: 'La capacité est atteinte : décidez de fermer ou de continuer.' },
-        { ton: 'info', titre: '3 doublons possibles', texte: 'Un même numéro a servi à plusieurs inscriptions.' },
-        { ton: 'danger', titre: 'Sauvegarde à faire', texte: 'La dernière sauvegarde date de plus de 7 jours.' },
-    ],
-    operations: [
-        { quand: 'il y a 5 min', texte: 'Inscription reçue (groupe de 3 personnes)' },
-        { quand: 'il y a 18 min', texte: 'Le SERAMO a confirmé sa présence' },
-        { quand: 'il y a 1 h', texte: 'Courrier « Mission AGO de Niakara » envoyé à 2 SR' },
-        { quand: 'hier', texte: 'Inscriptions ouvertes pour la Nuit du Coran' },
-    ],
-    echeances: [
-        { date: '2026-11-14', texte: 'Réponses attendues : mission AGO de Niakara' },
-        { date: '2026-11-18', texte: 'Fermeture prévue des inscriptions : Nuit du Coran' },
-    ],
-};
+/**
+ * Activités passées, déjà rangées dans les archives, avec des inscriptions et des pointages FICTIFS.
+ * Elles servent aux statistiques, aux rapports, aux archives et à la règle de conservation (12 mois).
+ */
+export const activitesPasseesExemple = [
+    {
+        id: 'nuit-du-coran-2025',
+        titre: 'Nuit du Coran',
+        edition: '1re édition (exemple)',
+        date: '2025-11-22',
+        heure: '21 h',
+        lieu: 'Mairie de Katiola',
+        description: 'Activité passée d’exemple, pour montrer les statistiques, les rapports et les archives.',
+        objectifs: ['Montrer une activité close et son bilan.'],
+        organisateur: 'AEEMCI — Secrétariat régional du Hambol',
+        conditions: 'Activité d’exemple.',
+        inscriptionsOuvertes: false,
+        capacite: 120,
+        maxAccompagnateurs: 2,
+        archivee: true,
+    },
+    {
+        id: 'seminaire-rentree-2025',
+        titre: 'Séminaire de rentrée',
+        edition: 'Exemple',
+        date: '2025-09-27',
+        heure: '9 h',
+        lieu: 'Niakara',
+        description: 'Activité passée d’exemple, terminée depuis plus de 12 mois : ses inscriptions sont à rendre anonymes.',
+        objectifs: ['Montrer la règle de conservation des données.'],
+        organisateur: 'AEEMCI — Secrétariat régional du Hambol',
+        conditions: 'Activité d’exemple.',
+        inscriptionsOuvertes: false,
+        capacite: 60,
+        maxAccompagnateurs: 0,
+        archivee: true,
+    },
+];
+
+/**
+ * Inscriptions et pointages FICTIFS des activités passées, toujours les mêmes d'un appareil à
+ * l'autre. Les numéros commencent par 07 00 01 : ils ne servent qu'à la démonstration.
+ */
+export function historiqueExemple() {
+    const inscriptions = [];
+    const pointages = [];
+    const sousComites = ['Katiola', 'Niakara', 'Dabakala', 'Tafiré', 'Bonieré', 'Satama', 'Foumbolo'];
+    const plan = [
+        { activiteId: 'nuit-du-coran-2025', groupes: 38, date: '2025-11-22', heure: 21 },
+        { activiteId: 'seminaire-rentree-2025', groupes: 24, date: '2025-09-27', heure: 9 },
+    ];
+    let numero = 0;
+
+    for (const { activiteId, groupes, date, heure } of plan) {
+        for (let rang = 1; rang <= groupes; rang++) {
+            numero++;
+            const groupe = `${activiteId}-g${rang}`;
+            const sexe = numero % 3 === 0 ? 'femme' : 'homme';
+            const annulee = rang % 13 === 0;
+            const sousComite = sousComites[numero % sousComites.length];
+            const principal = {
+                id: `${activiteId}-${rang}`,
+                activiteId,
+                groupe,
+                role: 'principal',
+                nom: `${sexe === 'femme' ? 'Participante' : 'Participant'} Exemple ${String(numero).padStart(2, '0')}`,
+                sexe,
+                telephone: `+225070001${String(numero).padStart(4, '0')}`,
+                ville: sousComite,
+                sousComite,
+                section: `Lycée de ${sousComite} (exemple)`,
+                mineur: false,
+                tuteur: null,
+                publicationAcceptee: numero % 2 === 0,
+                doublonPossible: false,
+                statut: annulee ? 'annulee' : 'admise',
+                motifAnnulation: annulee ? 'Empêchement signalé par la personne' : undefined,
+                source: rang % 9 === 0 ? 'administration' : 'formulaire public',
+                codeQr: `SEREH-ARCHIVE-${activiteId}-${rang}`,
+                recueLe: `${date}T08:00:00.000Z`,
+            };
+            inscriptions.push(principal);
+
+            if (activiteId === 'nuit-du-coran-2025' && rang % 4 === 0) {
+                inscriptions.push({
+                    ...principal,
+                    id: `${principal.id}-a`,
+                    role: 'accompagnateur',
+                    nom: `Accompagnant Exemple ${String(numero).padStart(2, '0')}`,
+                    sexe: 'homme',
+                    telephone: null,
+                    publicationAcceptee: false,
+                    codeQr: `${principal.codeQr}-A`,
+                });
+            }
+
+            // Environ quatre personnes admises sur cinq se sont présentées.
+            if (!annulee && rang % 5 !== 0) {
+                for (const personne of inscriptions.filter((inscription) => inscription.groupe === groupe)) {
+                    pointages.push({ inscriptionId: personne.id, activiteId, resultat: 'accepte', moyen: 'caméra', agent: 'Agent de démonstration', appareil: 'exemple', le: `${date}T${String(heure).padStart(2, '0')}:${String(rang % 60).padStart(2, '0')}:00.000Z` });
+                }
+            }
+        }
+    }
+
+    return { inscriptions, pointages };
+}
 
 /**
  * Secrétariats thématiques du bureau (liste des SR mandatés). Leurs noms complets restent à fournir :

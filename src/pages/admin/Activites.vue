@@ -5,7 +5,7 @@ import Alerte from '../../components/Alerte.vue';
 import BadgeStatut from '../../components/BadgeStatut.vue';
 import Icone from '../../components/Icone.vue';
 import { dateLongue } from '../../donnees-exemple.js';
-import { changerInscriptions, changerPublication, listerActivitesAdmin, MODE_DEMONSTRATION } from '../../services/donnees.js';
+import { archiverActivite, changerInscriptions, changerPublication, listerActivitesAdmin, mettreActiviteALaCorbeille, MODE_DEMONSTRATION } from '../../services/donnees.js';
 
 /**
  * Liste des activités pour l'administrateur : publiées ou non, avec leurs chiffres, et les décisions
@@ -50,6 +50,7 @@ onMounted(charger);
 
         <Alerte v-if="MODE_DEMONSTRATION" ton="info" titre="Démonstration">Les activités et leurs chiffres sont fictifs ; les changements restent dans cet onglet.</Alerte>
         <Alerte v-if="message" :ton="message.ton">{{ message.texte }}</Alerte>
+        <p class="text-sm text-encre-douce">Les activités closes et archivées sont dans la rubrique <RouterLink :to="{ name: 'admin-archives' }" class="font-semibold text-lien underline">Archives</RouterLink>.</p>
 
         <div v-if="!activites" class="flex flex-col gap-4" aria-hidden="true">
             <div v-for="index in 3" :key="index" class="squelette h-36" />
@@ -106,6 +107,20 @@ onMounted(charger);
                     @click="agir(activite.id, () => changerInscriptions(activite.id, false), `Inscriptions fermées pour « ${activite.titre} ».`)"
                 >Fermer les inscriptions</button>
                 <RouterLink :to="{ name: 'admin-inscriptions', query: { activite: activite.id } }" class="bouton-discret"><Icone nom="inscriptions" class="size-4" /> Voir les inscriptions</RouterLink>
+                <button
+                    v-if="activite.statut === 'terminee'"
+                    type="button"
+                    class="bouton-discret"
+                    :disabled="enCours === activite.id"
+                    @click="agir(activite.id, () => archiverActivite(activite.id), `« ${activite.titre} » est rangée dans les archives.`)"
+                ><Icone nom="archives" class="size-4" /> Archiver</button>
+                <button
+                    v-if="!activite.publiee && activite.nombres.recues === 0"
+                    type="button"
+                    class="bouton-discret"
+                    :disabled="enCours === activite.id"
+                    @click="agir(activite.id, () => mettreActiviteALaCorbeille(activite.id), `« ${activite.titre} » est à la corbeille : vous pouvez la restaurer depuis les Archives.`)"
+                ><Icone nom="fermer" class="size-4" /> Mettre à la corbeille</button>
             </div>
         </article>
     </div>

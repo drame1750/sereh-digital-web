@@ -1,5 +1,6 @@
 import QRCode from 'qrcode';
 import { dateLongue } from './donnees-exemple.js';
+import { chargerPolices, fond, HAUTEUR, LARGEUR, mm, police } from './lettre.js';
 
 /**
  * Billets et QR codes des personnes inscrites. Le QR code ne contient que le code aléatoire de
@@ -97,4 +98,76 @@ export function telecharger(blob, nomFichier) {
     lien.click();
     lien.remove();
     setTimeout(() => URL.revokeObjectURL(adresse), 1000);
+}
+
+/**
+ * Planches A4 de QR codes à imprimer en lot : huit cartes par page (deux colonnes, quatre rangées),
+ * chacune avec l'activité, le nom, le rôle et le QR code. Format provisoire, en attendant le format
+ * définitif des badges.
+ *
+ * @returns {Promise<HTMLCanvasElement[]>}
+ */
+export async function planchesDeQrCodes(personnes, activite, { demonstration = false } = {}) {
+    await chargerPolices();
+    const pages = [];
+    const colonnes = 2;
+    const rangees = 4;
+    const marge = mm(10);
+    const largeurCarte = (LARGEUR - 2 * marge) / colonnes;
+    const hauteurCarte = (HAUTEUR - 2 * marge) / rangees;
+    const tailleQr = hauteurCarte - mm(18);
+    const date = dateLongue(activite.date);
+    let contexte;
+
+    const ecrire = (texte, x, y, largeur, style, couleur) => {
+        contexte.font = style;
+        contexte.fillStyle = couleur;
+        let ligne = texte;
+
+        while (contexte.measureText(ligne).width > largeur && ligne.length > 4) {
+            ligne = `${ligne.slice(0, -2).trimEnd()}…`;
+        }
+
+        contexte.fillText(ligne, x, y);
+    };
+
+    for (const [index, personne] of personnes.entries()) {
+        if (index % (colonnes * rangees) === 0) {
+            const canevas = Object.assign(document.createElement('canvas'), { width: LARGEUR, height: HAUTEUR });
+            contexte = canevas.getContext('2d');
+            fond(contexte, demonstration);
+            pages.push(canevas);
+        }
+
+        const place = index % (colonnes * rangees);
+        const x = marge + (place % colonnes) * largeurCarte;
+        const y = marge + Math.floor(place / colonnes) * hauteurCarte;
+
+        // Trait de découpe en pointillés.
+        contexte.save();
+        contexte.setLineDash([mm(2), mm(1.5)]);
+        contexte.strokeStyle = 'rgb(29 26 22 / 0.35)';
+        contexte.lineWidth = mm(0.25);
+        contexte.strokeRect(x, y, largeurCarte, hauteurCarte);
+        contexte.restore();
+
+        contexte.fillStyle = '#0b5d2a';
+        contexte.fillRect(x, y, largeurCarte, mm(9));
+        ecrire(`${activite.titre}${activite.edition ? ` · ${activite.edition}` : ''}`, x + mm(4), y + mm(6.2), largeurCarte - mm(8), police(9, 700), '#ffffff');
+
+        const qr = new Image();
+        qr.src = await qrCodeImage(personne.codeQr, Math.round(tailleQr));
+        await qr.decode();
+        contexte.drawImage(qr, x + mm(4), y + mm(13), tailleQr, tailleQr);
+
+        const texteX = x + mm(8) + tailleQr;
+        const largeurTexte = largeurCarte - tailleQr - mm(12);
+        ecrire(personne.nom, texteX, y + mm(22), largeurTexte, police(10.5, 800), '#2b2118');
+        ecrire(libelleRole(personne), texteX, y + mm(28), largeurTexte, police(9, 600), '#7d6120');
+        ecrire(`${date.charAt(0).toUpperCase()}${date.slice(1)}`, texteX, y + mm(36), largeurTexte, police(8.5, 500), '#5c4f42');
+        ecrire(`${activite.heure} · ${activite.lieu}`, texteX, y + mm(41), largeurTexte, police(8.5, 500), '#5c4f42');
+        ecrire(demonstration ? 'Démonstration : non valable' : 'À présenter à l’entrée', texteX, y + mm(49), largeurTexte, police(8, 600, 'italic'), '#0b6b2f');
+    }
+
+    return pages;
 }

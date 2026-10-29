@@ -12,6 +12,7 @@ import {
     reprendreConnexion,
     remplacerMotDePasseProvisoire,
     seConnecter,
+    seDeconnecter,
     session,
     validerCode,
 } from '../services/session.js';
@@ -52,6 +53,14 @@ async function poursuivre(action) {
 
         if (session.utilisateur) {
             const retour = typeof route.query.retour === 'string' && route.query.retour.startsWith('/') ? route.query.retour : null;
+
+            // Le rôle Communication n'a pas encore d'espace : la personne reste ici, avec un mot.
+            if (session.utilisateur.role === 'communication') {
+                session.message = 'Connecté. L’espace Communication (préparer les textes et l’affiche d’une activité, sans les publier) n’est pas encore construit.';
+
+                return;
+            }
+
             await router.replace(retour ?? accueilDuRole());
         } else {
             await nextTick();
@@ -102,7 +111,8 @@ onMounted(() => {
 
             <div v-if="session.utilisateur" class="flex flex-col gap-3 text-center">
                 <p>Connecté : <strong>{{ session.utilisateur.nom }}</strong> ({{ LIBELLES_ROLES[session.utilisateur.role] }}).</p>
-                <RouterLink :to="accueilDuRole()" class="bouton-primaire">Ouvrir mon espace</RouterLink>
+                <RouterLink v-if="session.utilisateur.role !== 'communication'" :to="accueilDuRole()" class="bouton-primaire">Ouvrir mon espace</RouterLink>
+                <button v-else type="button" class="bouton-secondaire" @click="seDeconnecter('Vous êtes déconnecté.')">Se déconnecter</button>
             </div>
 
             <form v-else-if="!session.etape" class="flex flex-col gap-4" @submit.prevent="envoyerIdentifiants">
@@ -164,6 +174,7 @@ onMounted(() => {
                     <p v-if="compte.motDePasseProvisoire" class="text-xs text-encre-douce">Mot de passe provisoire, à remplacer à la connexion.</p>
                 </li>
             </ul>
+            <p class="mt-3 text-encre-douce">Autres comptes fictifs, avec le mot de passe <strong class="font-mono">Demonstration2026</strong> : Responsable 07 00 00 00 05, Communication 07 00 00 00 06, Remplaçant d’un membre du SERAMO 07 00 00 00 07. Un agent limité à la nuit du 21 novembre (07 00 00 00 08) est refusé en dehors de sa plage horaire.</p>
         </details>
     </div>
 </template>

@@ -72,7 +72,7 @@ onMounted(async () => {
             <p v-if="profil" class="text-encre-douce">{{ profil.poste }} · Bureau régional du Hambol</p>
         </header>
 
-        <Alerte v-if="MODE_DEMONSTRATION" ton="info" titre="Démonstration">Les courriers sont fictifs et vos réponses restent dans cet onglet. Les rappels par WhatsApp ou e-mail arriveront avec les notifications.</Alerte>
+        <Alerte v-if="MODE_DEMONSTRATION" ton="info" titre="Démonstration">Les courriers sont fictifs et vos réponses restent dans cet onglet. Les rappels apparaissent dans vos notifications (la cloche en haut).</Alerte>
         <Alerte v-if="erreur" ton="danger">{{ erreur }}</Alerte>
 
         <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="En bref">
